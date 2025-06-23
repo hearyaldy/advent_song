@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../data/models/song_collection.dart';
+import '../data/models/song_collection.dart';
 
 class CollectionCard extends StatelessWidget {
   final CollectionMetadata metadata;

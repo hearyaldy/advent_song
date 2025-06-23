@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:song_lyrics_app/themes/app_theme.dart';
 import '../presentation/dashboard/pages/dashboard_page.dart';
 import '../presentation/song_list/pages/song_list_page.dart';
 import '../presentation/lyrics_viewer/pages/lyrics_page.dart';
-import 'themes/app_theme.dart';
 
 class SongLyricsApp extends StatelessWidget {
   const SongLyricsApp({super.key});
