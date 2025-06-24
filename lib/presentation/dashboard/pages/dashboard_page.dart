@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/json_loader_service.dart';
+import '../../../core/services/auth_service.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -22,10 +23,26 @@ class _DashboardPageState extends State<DashboardPage> {
   String _currentDate = '';
   String _greeting = '';
 
+  // Auth state
+  bool _isLoggedIn = false;
+  bool _isAdmin = false;
+
+  // Login form
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoggingIn = false;
+
   @override
   void initState() {
     super.initState();
     _initializePage();
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   Future<void> _initializePage() async {
@@ -33,11 +50,19 @@ class _DashboardPageState extends State<DashboardPage> {
       _loadCollectionCounts(),
       _loadRecentFavorites(),
       _loadVerseOfTheDay(),
+      _checkAuthState(),
     ]);
     _setGreetingAndDate();
     setState(() {
       _isLoading = false;
     });
+  }
+
+  Future<void> _checkAuthState() async {
+    _isLoggedIn = AuthService.isLoggedIn;
+    if (_isLoggedIn) {
+      _isAdmin = await AuthService.isAdmin;
+    }
   }
 
   void _setGreetingAndDate() {
@@ -145,6 +170,50 @@ class _DashboardPageState extends State<DashboardPage> {
     } catch (e) {
       // Handle error silently
     }
+  }
+
+  Future<void> _handleLogin() async {
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
+      _showMessage('Please enter email and password');
+      return;
+    }
+
+    setState(() {
+      _isLoggingIn = true;
+    });
+
+    final success = await AuthService.login(
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
+
+    setState(() {
+      _isLoggingIn = false;
+    });
+
+    if (success) {
+      await _checkAuthState();
+      setState(() {});
+      _emailController.clear();
+      _passwordController.clear();
+      _showMessage('Login successful!');
+    } else {
+      _showMessage('Login failed. Please check your credentials.');
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    await AuthService.logout();
+    await _checkAuthState();
+    setState(() {});
+    _showMessage('Logged out successfully');
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
@@ -300,6 +369,10 @@ class _DashboardPageState extends State<DashboardPage> {
                 _buildGreetingCard(),
                 const SizedBox(height: 24),
 
+                // Auth Card
+                _buildAuthCard(),
+                const SizedBox(height: 24),
+
                 // Verse of the Day
                 if (_verseOfTheDay != null) ...[
                   _buildVerseOfTheDayCard(),
@@ -335,6 +408,158 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAuthCard() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _isLoggedIn
+              ? Colors.green.withOpacity(0.3)
+              : colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withOpacity(0.08),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: _isLoggedIn ? _buildLoggedInView() : _buildLoginForm(),
+    );
+  }
+
+  Widget _buildLoginForm() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.admin_panel_settings, color: colorScheme.primary),
+            const SizedBox(width: 8),
+            Text(
+              'Admin Login',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _emailController,
+          decoration: const InputDecoration(
+            labelText: 'Email',
+            hintText: 'admin@church.com',
+            prefixIcon: Icon(Icons.email),
+          ),
+          keyboardType: TextInputType.emailAddress,
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _passwordController,
+          decoration: const InputDecoration(
+            labelText: 'Password',
+            prefixIcon: Icon(Icons.lock),
+          ),
+          obscureText: true,
+          onSubmitted: (_) => _handleLogin(),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _isLoggingIn ? null : _handleLogin,
+            child: _isLoggingIn
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Login'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoggedInView() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 8),
+            Text(
+              'Welcome, ${AuthService.userName}',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const Spacer(),
+            if (_isAdmin)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Text(
+                  'ADMIN',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            if (_isAdmin) ...[
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    context.go('/sermons');
+                  },
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Manage Sermons'),
+                  style:
+                      ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+                ),
+              ),
+              const SizedBox(width: 12),
+            ],
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _handleLogout,
+                icon: const Icon(Icons.logout),
+                label: const Text('Logout'),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -384,7 +609,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 Text(
                   _greeting,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    // Changed to titleMedium (much smaller)
                     fontWeight: FontWeight.w600,
                     color: colorScheme.onSurface,
                   ),
@@ -393,7 +617,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 Text(
                   'Selamat Kembali ke Aplikasi Lagu Advent',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    // Changed back to bodyMedium
                     color: colorScheme.onSurface.withOpacity(0.7),
                   ),
                 ),
@@ -788,7 +1011,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             collection.displayName,
                             style: theme.textTheme.bodySmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              fontSize: 13, // Increased from 11 to 13
+                              fontSize: 13,
                               color: Colors.white,
                               shadows: [
                                 Shadow(

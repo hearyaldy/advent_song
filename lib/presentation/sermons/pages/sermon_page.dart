@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/services/auth_service.dart';
+import '../../../core/services/sermon_service.dart';
 
 class SermonPage extends StatefulWidget {
   const SermonPage({super.key});
@@ -15,74 +17,16 @@ class _SermonPageState extends State<SermonPage> {
   String _selectedFilter = 'All';
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _isAdmin = false;
 
-  // Sample sermon data - replace with actual data source
-  final List<Map<String, dynamic>> _sermons = [
-    {
-      'id': '1',
-      'title': 'Walking in Faith',
-      'pastor': 'Pastor John Smith',
-      'date': DateTime.now().subtract(const Duration(days: 7)),
-      'duration': '45 min',
-      'series': 'Living by Faith',
-      'description':
-          'A powerful message about trusting God in uncertain times and walking boldly in faith.',
-      'tags': ['Faith', 'Trust', 'Christian Living'],
-      'hasAudio': true,
-      'hasVideo': false,
-      'isNew': true,
-    },
-    {
-      'id': '2',
-      'title': 'The Power of Prayer',
-      'pastor': 'Pastor Mary Johnson',
-      'date': DateTime.now().subtract(const Duration(days: 14)),
-      'duration': '38 min',
-      'series': 'Spiritual Disciplines',
-      'description':
-          'Understanding the importance and impact of prayer in our daily spiritual journey.',
-      'tags': ['Prayer', 'Spiritual Growth', 'Devotion'],
-      'hasAudio': true,
-      'hasVideo': true,
-      'isNew': false,
-    },
-    {
-      'id': '3',
-      'title': 'Love Your Neighbor',
-      'pastor': 'Pastor David Lee',
-      'date': DateTime.now().subtract(const Duration(days: 21)),
-      'duration': '42 min',
-      'series': 'Christian Community',
-      'description':
-          'Exploring what it means to love our neighbors as ourselves in modern society.',
-      'tags': ['Love', 'Community', 'Service'],
-      'hasAudio': true,
-      'hasVideo': true,
-      'isNew': false,
-    },
-    {
-      'id': '4',
-      'title': 'Hope in Difficult Times',
-      'pastor': 'Pastor Sarah Wilson',
-      'date': DateTime.now().subtract(const Duration(days: 28)),
-      'duration': '50 min',
-      'series': 'Finding Hope',
-      'description':
-          'How to maintain hope and find strength during life\'s most challenging moments.',
-      'tags': ['Hope', 'Encouragement', 'Perseverance'],
-      'hasAudio': true,
-      'hasVideo': false,
-      'isNew': false,
-    },
-  ];
-
+  List<Map<String, dynamic>> _sermons = [];
   List<Map<String, dynamic>> _filteredSermons = [];
 
   @override
   void initState() {
     super.initState();
     _getCurrentDate();
-    _filteredSermons = _sermons;
+    _checkAdminStatus();
   }
 
   @override
@@ -97,6 +41,11 @@ class _SermonPageState extends State<SermonPage> {
     setState(() {
       _currentDate = formattedDate;
     });
+  }
+
+  Future<void> _checkAdminStatus() async {
+    _isAdmin = await AuthService.isAdmin;
+    setState(() {});
   }
 
   void _filterSermons(String query) {
@@ -127,16 +76,17 @@ class _SermonPageState extends State<SermonPage> {
         case 'Recent':
           _filteredSermons = _sermons
               .where((sermon) =>
-                  DateTime.now().difference(sermon['date']).inDays <= 30)
+                  DateTime.now().difference(sermon['date'].toDate()).inDays <=
+                  30)
               .toList();
           break;
         case 'Audio':
           _filteredSermons =
-              _sermons.where((sermon) => sermon['hasAudio']).toList();
+              _sermons.where((sermon) => sermon['hasAudio'] == true).toList();
           break;
         case 'Video':
           _filteredSermons =
-              _sermons.where((sermon) => sermon['hasVideo']).toList();
+              _sermons.where((sermon) => sermon['hasVideo'] == true).toList();
           break;
       }
     });
@@ -255,9 +205,9 @@ class _SermonPageState extends State<SermonPage> {
                         color: Colors.black.withOpacity(0.4),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Text(
-                        'Spiritual Growth',
-                        style: TextStyle(
+                      child: Text(
+                        _isAdmin ? 'Admin Access' : 'Spiritual Growth',
+                        style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -317,6 +267,24 @@ class _SermonPageState extends State<SermonPage> {
                     ),
                   ),
                 ),
+                if (_isAdmin)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      'ADMIN',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 8),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -402,179 +370,242 @@ class _SermonPageState extends State<SermonPage> {
 
           // Sermon list
           Expanded(
-            child: _filteredSermons.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    itemCount: _filteredSermons.length,
-                    itemBuilder: (context, index) {
-                      final sermon = _filteredSermons[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12.0),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () {
-                            _showSermonDetails(sermon);
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Header row
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        sermon['title'],
-                                        style: theme.textTheme.titleMedium
-                                            ?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    if (sermon['isNew'])
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: const Text(
-                                          'NEW',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                // Pastor and date
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.person,
-                                      size: 16,
-                                      color: colorScheme.onSurface
-                                          .withOpacity(0.6),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      sermon['pastor'],
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: SermonService.getSermons(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text('Error loading sermons: ${snapshot.error}'),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => setState(() {}),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                _sermons = snapshot.data ?? [];
+                _applyCurrentFilter();
+
+                if (_filteredSermons.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  itemCount: _filteredSermons.length,
+                  itemBuilder: (context, index) {
+                    final sermon = _filteredSermons[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12.0),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          _showSermonDetails(sermon);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Header row
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      sermon['title'] ?? 'Untitled',
                                       style:
-                                          theme.textTheme.bodySmall?.copyWith(
-                                        color: colorScheme.onSurface
-                                            .withOpacity(0.7),
+                                          theme.textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    const SizedBox(width: 16),
-                                    Icon(
-                                      Icons.calendar_today,
-                                      size: 16,
-                                      color: colorScheme.onSurface
-                                          .withOpacity(0.6),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      DateFormat('MMM d, yyyy')
-                                          .format(sermon['date']),
-                                      style:
-                                          theme.textTheme.bodySmall?.copyWith(
-                                        color: colorScheme.onSurface
-                                            .withOpacity(0.7),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                // Description
-                                Text(
-                                  sermon['description'],
-                                  style: theme.textTheme.bodyMedium,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 12),
-                                // Footer row
-                                Row(
-                                  children: [
-                                    // Series tag
+                                  ),
+                                  if (sermon['isNew'] == true)
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 8,
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.purple.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
+                                        color: Colors.red,
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
-                                      child: Text(
-                                        sermon['series'],
-                                        style:
-                                            theme.textTheme.bodySmall?.copyWith(
-                                          color: Colors.purple,
-                                          fontWeight: FontWeight.w500,
+                                      child: const Text(
+                                        'NEW',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     ),
+                                  if (_isAdmin) ...[
                                     const SizedBox(width: 8),
-                                    // Duration
-                                    Text(
-                                      sermon['duration'],
+                                    PopupMenuButton<String>(
+                                      onSelected: (value) {
+                                        if (value == 'edit') {
+                                          _showAddEditDialog(sermon);
+                                        } else if (value == 'delete') {
+                                          _deleteSermon(sermon['id']);
+                                        }
+                                      },
+                                      itemBuilder: (context) => [
+                                        const PopupMenuItem(
+                                          value: 'edit',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.edit, size: 16),
+                                              SizedBox(width: 8),
+                                              Text('Edit'),
+                                            ],
+                                          ),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'delete',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.delete,
+                                                  size: 16, color: Colors.red),
+                                              SizedBox(width: 8),
+                                              Text('Delete',
+                                                  style: TextStyle(
+                                                      color: Colors.red)),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                      child:
+                                          const Icon(Icons.more_vert, size: 20),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              // Pastor and date
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.person,
+                                    size: 16,
+                                    color:
+                                        colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    sermon['pastor'] ?? 'Unknown Pastor',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurface
+                                          .withOpacity(0.7),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Icon(
+                                    Icons.calendar_today,
+                                    size: 16,
+                                    color:
+                                        colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    DateFormat('MMM d, yyyy')
+                                        .format(sermon['date'].toDate()),
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurface
+                                          .withOpacity(0.7),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              // Description
+                              Text(
+                                sermon['description'] ??
+                                    'No description available',
+                                style: theme.textTheme.bodyMedium,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 12),
+                              // Footer row
+                              Row(
+                                children: [
+                                  // Series tag
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.purple.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      sermon['series'] ?? 'General',
                                       style:
                                           theme.textTheme.bodySmall?.copyWith(
-                                        color: colorScheme.onSurface
-                                            .withOpacity(0.6),
+                                        color: Colors.purple,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                    const Spacer(),
-                                    // Media indicators
-                                    if (sermon['hasAudio'])
-                                      Icon(
-                                        Icons.audiotrack,
-                                        size: 20,
-                                        color: Colors.green,
-                                      ),
-                                    if (sermon['hasVideo'])
-                                      const SizedBox(width: 8),
-                                    if (sermon['hasVideo'])
-                                      Icon(
-                                        Icons.videocam,
-                                        size: 20,
-                                        color: Colors.blue,
-                                      ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  // Duration
+                                  Text(
+                                    '${sermon['duration'] ?? 0} min',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurface
+                                          .withOpacity(0.6),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  // Media indicators
+                                  if (sermon['hasAudio'] == true)
+                                    const Icon(
+                                      Icons.audiotrack,
+                                      size: 20,
+                                      color: Colors.green,
+                                    ),
+                                  if (sermon['hasVideo'] == true) ...[
+                                    const SizedBox(width: 8),
+                                    const Icon(
+                                      Icons.videocam,
+                                      size: 20,
+                                      color: Colors.blue,
+                                    ),
                                   ],
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Add new sermon functionality
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Add sermon feature coming soon!'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        },
-        backgroundColor: Colors.purple,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      floatingActionButton: _isAdmin
+          ? FloatingActionButton(
+              onPressed: () => _showAddEditDialog(null),
+              backgroundColor: Colors.purple,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
     );
   }
 
@@ -626,10 +657,10 @@ class _SermonPageState extends State<SermonPage> {
                       Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                 ),
           ),
-          if (_searchQuery.isEmpty) ...[
+          if (_searchQuery.isEmpty && _isAdmin) ...[
             const SizedBox(height: 8),
             Text(
-              'Sermon messages will appear here',
+              'Tap the + button to add your first sermon',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context)
                         .colorScheme
@@ -678,7 +709,7 @@ class _SermonPageState extends State<SermonPage> {
               ),
               // Title
               Text(
-                sermon['title'],
+                sermon['title'] ?? 'Untitled',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -689,41 +720,42 @@ class _SermonPageState extends State<SermonPage> {
                 children: [
                   const Icon(Icons.person, size: 16, color: Colors.purple),
                   const SizedBox(width: 4),
-                  Text(sermon['pastor']),
+                  Text(sermon['pastor'] ?? 'Unknown Pastor'),
                   const SizedBox(width: 16),
                   const Icon(Icons.calendar_today,
                       size: 16, color: Colors.purple),
                   const SizedBox(width: 4),
-                  Text(DateFormat('MMMM d, yyyy').format(sermon['date'])),
+                  Text(DateFormat('MMMM d, yyyy')
+                      .format(sermon['date'].toDate())),
                 ],
               ),
               const SizedBox(height: 16),
               // Description
               Text(
-                sermon['description'],
+                sermon['description'] ?? 'No description available',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 16),
               // Tags
-              Wrap(
-                spacing: 8,
-                children: (sermon['tags'] as List<String>)
-                    .map((tag) => Chip(
-                          label: Text(tag),
-                          backgroundColor: Colors.purple.withOpacity(0.1),
-                          labelStyle: const TextStyle(color: Colors.purple),
-                        ))
-                    .toList(),
-              ),
+              if (sermon['tags'] != null && (sermon['tags'] as List).isNotEmpty)
+                Wrap(
+                  spacing: 8,
+                  children: (sermon['tags'] as List<dynamic>)
+                      .map((tag) => Chip(
+                            label: Text(tag.toString()),
+                            backgroundColor: Colors.purple.withOpacity(0.1),
+                            labelStyle: const TextStyle(color: Colors.purple),
+                          ))
+                      .toList(),
+                ),
               const SizedBox(height: 24),
               // Action buttons
               Row(
                 children: [
-                  if (sermon['hasAudio'])
+                  if (sermon['hasAudio'] == true)
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          // TODO: Play audio
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -736,13 +768,12 @@ class _SermonPageState extends State<SermonPage> {
                             backgroundColor: Colors.green),
                       ),
                     ),
-                  if (sermon['hasAudio'] && sermon['hasVideo'])
+                  if (sermon['hasAudio'] == true && sermon['hasVideo'] == true)
                     const SizedBox(width: 12),
-                  if (sermon['hasVideo'])
+                  if (sermon['hasVideo'] == true)
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          // TODO: Play video
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -755,6 +786,19 @@ class _SermonPageState extends State<SermonPage> {
                             backgroundColor: Colors.blue),
                       ),
                     ),
+                  if (sermon['hasAudio'] != true && sermon['hasVideo'] != true)
+                    Expanded(
+                      child: Text(
+                        'No media available for this sermon',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.6),
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                 ],
               ),
             ],
@@ -762,5 +806,187 @@ class _SermonPageState extends State<SermonPage> {
         ),
       ),
     );
+  }
+
+  void _showAddEditDialog(Map<String, dynamic>? sermon) {
+    final isEdit = sermon != null;
+    final titleController = TextEditingController(text: sermon?['title'] ?? '');
+    final pastorController =
+        TextEditingController(text: sermon?['pastor'] ?? '');
+    final seriesController =
+        TextEditingController(text: sermon?['series'] ?? '');
+    final descriptionController =
+        TextEditingController(text: sermon?['description'] ?? '');
+    final durationController =
+        TextEditingController(text: sermon?['duration']?.toString() ?? '');
+    final audioUrlController =
+        TextEditingController(text: sermon?['audioUrl'] ?? '');
+    final videoUrlController =
+        TextEditingController(text: sermon?['videoUrl'] ?? '');
+
+    DateTime selectedDate =
+        sermon != null ? sermon['date'].toDate() : DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(isEdit ? 'Edit Sermon' : 'Add New Sermon'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(labelText: 'Title *'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: pastorController,
+                decoration: const InputDecoration(labelText: 'Pastor *'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: seriesController,
+                decoration: const InputDecoration(labelText: 'Series'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(labelText: 'Description'),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: durationController,
+                decoration:
+                    const InputDecoration(labelText: 'Duration (minutes)'),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: audioUrlController,
+                decoration:
+                    const InputDecoration(labelText: 'Audio URL (optional)'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: videoUrlController,
+                decoration:
+                    const InputDecoration(labelText: 'Video URL (optional)'),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                title: Text(
+                    'Date: ${DateFormat('MMM d, yyyy').format(selectedDate)}'),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: selectedDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                  );
+                  if (date != null) {
+                    selectedDate = date;
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleController.text.trim().isEmpty ||
+                  pastorController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Title and Pastor are required')),
+                );
+                return;
+              }
+
+              final success = isEdit
+                  ? await SermonService.updateSermon(sermon['id'], {
+                      'title': titleController.text.trim(),
+                      'pastor': pastorController.text.trim(),
+                      'series': seriesController.text.trim(),
+                      'description': descriptionController.text.trim(),
+                      'duration': int.tryParse(durationController.text) ?? 30,
+                      'audioUrl': audioUrlController.text.trim(),
+                      'videoUrl': videoUrlController.text.trim(),
+                      'hasAudio': audioUrlController.text.trim().isNotEmpty,
+                      'hasVideo': videoUrlController.text.trim().isNotEmpty,
+                      'date': selectedDate,
+                    })
+                  : await SermonService.addSermon(
+                      title: titleController.text.trim(),
+                      pastor: pastorController.text.trim(),
+                      date: selectedDate,
+                      series: seriesController.text.trim(),
+                      description: descriptionController.text.trim(),
+                      duration: int.tryParse(durationController.text) ?? 30,
+                      audioUrl: audioUrlController.text.trim(),
+                      videoUrl: videoUrlController.text.trim(),
+                    );
+
+              Navigator.pop(context);
+
+              if (success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content:
+                          Text(isEdit ? 'Sermon updated!' : 'Sermon added!')),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Failed to save sermon')),
+                );
+              }
+            },
+            child: Text(isEdit ? 'Update' : 'Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteSermon(String sermonId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Sermon'),
+        content: const Text(
+            'Are you sure you want to delete this sermon? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await SermonService.deleteSermon(sermonId);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sermon deleted!')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to delete sermon')),
+        );
+      }
+    }
   }
 }

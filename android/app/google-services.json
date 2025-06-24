@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "426462153394",
+    "firebase_url": "https://lagu-advent-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "lagu-advent",
+    "storage_bucket": "lagu-advent.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:426462153394:android:afa4da8ff0fb9695f697ab",
+        "android_client_info": {
+          "package_name": "com.sak.laguadvent"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxF9hZrH6nlQ3gJ1AArC16QUrZ3kbnIkg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
