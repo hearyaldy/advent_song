@@ -202,67 +202,100 @@ class _SongListPageState extends State<SongListPage> {
       backgroundColor: colorScheme.surface,
       body: Column(
         children: [
-          // Header with image
+          // Header with collection cover image
           Stack(
             children: [
               Container(
                 width: double.infinity,
                 height: 120,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      metadata?.colorTheme ?? colorScheme.primary,
-                      colorScheme.secondary,
+                child: ClipRect(
+                  child: Stack(
+                    children: [
+                      // Collection-specific cover image
+                      Positioned.fill(
+                        child: Image.asset(
+                          metadata?.coverImage ??
+                              'assets/images/header_image.png',
+                          width: double.infinity,
+                          height: 120,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            // Fallback to gradient if image fails to load
+                            return Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    metadata?.colorTheme ?? colorScheme.primary,
+                                    colorScheme.secondary,
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      // Dark overlay for better text readability
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.black.withOpacity(0.3),
+                                Colors.black.withOpacity(0.6),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                child: Image.asset(
-                  'assets/images/header_image.png',
-                  width: double.infinity,
-                  height: 120,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            metadata?.colorTheme ?? colorScheme.primary,
-                            colorScheme.secondary,
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
               ),
-              // Back button
-              Positioned(
-                top: MediaQuery.of(context).padding.top + 8,
-                left: 8,
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.go('/'),
-                ),
-              ),
+
               // Settings button
               Positioned(
                 top: MediaQuery.of(context).padding.top + 8,
                 right: 8,
-                child: IconButton(
-                  icon: const Icon(Icons.settings, color: Colors.white),
-                  onPressed: () => context.go('/settings'),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.settings, color: Colors.white),
+                    onPressed: () => context.go('/settings'),
+                  ),
                 ),
               ),
+              // Title and date
               Positioned(
                 bottom: 10,
                 left: 20,
+                right: 60, // Adjusted to give space for settings button
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        metadata?.name ?? 'Collection',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                     Text(
                       metadata?.displayName ?? 'Songs',
                       style: const TextStyle(

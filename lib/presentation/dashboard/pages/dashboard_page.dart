@@ -764,19 +764,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
         return Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDarkMode
-                  ? [
-                      colorScheme.surfaceContainerHighest,
-                      colorScheme.surface,
-                    ]
-                  : [
-                      colorScheme.surface,
-                      collection.colorTheme.withOpacity(0.05),
-                    ],
-            ),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: collection.colorTheme.withOpacity(0.3),
@@ -793,68 +780,121 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ],
           ),
-          child: InkWell(
+          child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            onTap: () {
-              context.go('/collection/${collection.id}');
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
+            child: Stack(
+              children: [
+                // Background image or gradient fallback
+                Positioned.fill(
+                  child: Image.asset(
+                    collection.coverImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      // Fallback to gradient if image fails to load
+                      return Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              collection.colorTheme.withOpacity(0.8),
+                              collection.colorTheme,
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                // Dark overlay for better text readability
+                Positioned.fill(
+                  child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
                         colors: [
-                          collection.colorTheme.withOpacity(0.2),
-                          collection.colorTheme.withOpacity(0.1),
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.7),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: collection.colorTheme.withOpacity(0.4),
-                        width: 1,
+                    ),
+                  ),
+                ),
+                // Content
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    context.go('/collection/${collection.id}');
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    padding: const EdgeInsets.all(12.0),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.4),
+                                width: 1,
+                              ),
+                            ),
+                            child: Icon(
+                              _getCollectionIcon(collection.id),
+                              color: Colors.white,
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            collection.displayName,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13, // Increased from 11 to 13
+                              color: Colors.white,
+                              shadows: [
+                                Shadow(
+                                  offset: const Offset(0, 1),
+                                  blurRadius: 2,
+                                  color: Colors.black.withOpacity(0.8),
+                                ),
+                              ],
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '$count songs',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 9,
+                              shadows: [
+                                Shadow(
+                                  offset: const Offset(0, 1),
+                                  blurRadius: 2,
+                                  color: Colors.black.withOpacity(0.8),
+                                ),
+                              ],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                     ),
-                    child: Icon(
-                      Icons.library_music,
-                      color: collection.colorTheme,
-                      size: 22,
-                    ),
                   ),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          collection.displayName,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                            color: colorScheme.onSurface,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 3,
-                          overflow: TextOverflow.visible,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '$count songs',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurface.withOpacity(0.7),
-                            fontSize: 9,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -1129,5 +1169,20 @@ class _DashboardPageState extends State<DashboardPage> {
     if (hour < 12) return Icons.wb_sunny;
     if (hour < 17) return Icons.wb_sunny_outlined;
     return Icons.nights_stay;
+  }
+
+  IconData _getCollectionIcon(String collectionId) {
+    switch (collectionId) {
+      case 'lpmi':
+        return Icons.music_note_rounded;
+      case 'srd':
+        return Icons.favorite_rounded;
+      case 'lagu_iban':
+        return Icons.language_rounded;
+      case 'pandak':
+        return Icons.celebration_rounded;
+      default:
+        return Icons.library_music_rounded;
+    }
   }
 }

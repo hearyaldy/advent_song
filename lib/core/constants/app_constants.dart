@@ -13,7 +13,7 @@ class AppConstants {
       description: 'Collection of short spiritual songs',
       fileName: 'lpmi.json',
       colorTheme: Color(0xFF4CAF50),
-      coverImage: 'assets/images/collection_covers/lpmi.jpg',
+      coverImage: 'assets/images/collection_covers/lpmi_cover.jpg',
     ),
     'srd': CollectionMetadata(
       id: 'srd',
@@ -22,7 +22,7 @@ class AppConstants {
       description: 'Traditional praise songs collection',
       fileName: 'srd.json',
       colorTheme: Color(0xFF2196F3),
-      coverImage: 'assets/images/collection_covers/srd.jpg',
+      coverImage: 'assets/images/collection_covers/srd_cover.jpg',
     ),
     'lagu_iban': CollectionMetadata(
       id: 'lagu_iban',
@@ -31,7 +31,7 @@ class AppConstants {
       description: 'Special religious devotion songs',
       fileName: 'iban.json',
       colorTheme: Color(0xFFFF9800),
-      coverImage: 'assets/images/collection_covers/iban.jpg',
+      coverImage: 'assets/images/collection_covers/iban_cover.jpg',
     ),
     'pandak': CollectionMetadata(
       id: 'pandak',
@@ -41,7 +41,7 @@ class AppConstants {
       fileName:
           'pandak.json', // ✅ Fixed: Changed from 'lagu_iban.json' to 'iban.json'
       colorTheme: Color(0xFF9C27B0),
-      coverImage: 'assets/images/collection_covers/pandak.jpg',
+      coverImage: 'assets/images/collection_covers/pandak_cover.jpg',
     ),
   };
 

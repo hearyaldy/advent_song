@@ -206,7 +206,7 @@ $lyrics''';
           return CustomScrollView(
             controller: _scrollController,
             slivers: [
-              // App bar with header image
+              // App bar with collection cover image
               SliverAppBar(
                 expandedHeight: 200,
                 pinned: true,
@@ -221,36 +221,28 @@ $lyrics''';
                   background: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              metadata?.colorTheme ?? colorScheme.primary,
-                              colorScheme.secondary,
-                            ],
-                          ),
-                        ),
-                        child: Image.asset(
-                          'assets/images/header_image.png',
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    metadata?.colorTheme ?? colorScheme.primary,
-                                    colorScheme.secondary,
-                                  ],
-                                ),
+                      // Collection-specific cover image
+                      Image.asset(
+                        metadata?.coverImage ??
+                            'assets/images/header_image.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          // Fallback to gradient if image fails to load
+                          return Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  metadata?.colorTheme ?? colorScheme.primary,
+                                  colorScheme.secondary,
+                                ],
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        },
                       ),
+                      // Dark overlay for better text readability
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -263,6 +255,7 @@ $lyrics''';
                           ),
                         ),
                       ),
+                      // Song information
                       Positioned(
                         bottom: 16,
                         left: 16,
@@ -276,7 +269,7 @@ $lyrics''';
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.3),
+                                color: Colors.black.withOpacity(0.4),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
