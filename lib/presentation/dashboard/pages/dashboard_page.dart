@@ -383,7 +383,8 @@ class _DashboardPageState extends State<DashboardPage> {
               children: [
                 Text(
                   _greeting,
-                  style: theme.textTheme.headlineSmall?.copyWith(
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    // Changed to titleMedium (much smaller)
                     fontWeight: FontWeight.w600,
                     color: colorScheme.onSurface,
                   ),
@@ -392,6 +393,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 Text(
                   'Selamat Kembali ke Aplikasi Lagu Advent',
                   style: theme.textTheme.bodyMedium?.copyWith(
+                    // Changed back to bodyMedium
                     color: colorScheme.onSurface.withOpacity(0.7),
                   ),
                 ),
@@ -432,184 +434,111 @@ class _DashboardPageState extends State<DashboardPage> {
 
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isDarkMode = theme.brightness == Brightness.dark;
 
     return Container(
+      width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 4.0),
+      padding: const EdgeInsets.all(24.0),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDarkMode
-              ? [
-                  colorScheme.surfaceContainerHighest,
-                  colorScheme.surface,
-                ]
-              : [
-                  colorScheme.surface,
-                  colorScheme.secondary.withOpacity(0.08),
-                ],
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: colorScheme.secondary.withOpacity(0.2),
+          color: colorScheme.outline.withOpacity(0.1),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: isDarkMode
-                ? Colors.black.withOpacity(0.4)
-                : colorScheme.secondary.withOpacity(0.2),
-            blurRadius: isDarkMode ? 20 : 30,
-            offset: const Offset(0, 12),
+            color: colorScheme.shadow.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
             spreadRadius: 0,
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        colorScheme.secondary.withOpacity(0.2),
-                        colorScheme.primary.withOpacity(0.1),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: colorScheme.secondary.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.auto_awesome,
-                    color: colorScheme.secondary,
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Lagu Hari Ini',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        colorScheme.secondary.withOpacity(0.15),
-                        colorScheme.primary.withOpacity(0.1),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: colorScheme.secondary.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Text(
-                    DateFormat('MMM d').format(DateTime.now()),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.secondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // Verse content
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: isDarkMode
-                      ? [
-                          colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                          colorScheme.surfaceContainerHighest.withOpacity(0.2),
-                        ]
-                      : [
-                          colorScheme.secondary.withOpacity(0.08),
-                          colorScheme.primary.withOpacity(0.05),
-                        ],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: colorScheme.secondary.withOpacity(0.2),
-                ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Simple header
+          Row(
+            children: [
+              Icon(
+                Icons.auto_awesome,
+                color: colorScheme.primary,
+                size: 20,
               ),
-              child: Text(
-                _verseOfTheDay!['lyrics']?.toString() ?? 'No lyrics available',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  fontStyle: FontStyle.italic,
-                  height: 1.6,
+              const SizedBox(width: 8),
+              Text(
+                'Lagu Hari Ini',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
                   color: colorScheme.onSurface,
-                  fontSize: 16,
                 ),
-                textAlign: TextAlign.center,
               ),
+              const Spacer(),
+              Text(
+                DateFormat('MMM d').format(DateTime.now()),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface.withOpacity(0.6),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Clean lyrics box
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: Text(
+              _verseOfTheDay!['lyrics']?.toString() ?? 'No lyrics available',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontStyle: FontStyle.italic,
+                height: 1.6,
+                color: colorScheme.onSurface,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
 
-            const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-            // Attribution and action
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _verseOfTheDay!['song_title']?.toString() ?? 'Unknown',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurface.withOpacity(0.8),
-                    ),
+          // Simple footer
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _verseOfTheDay!['song_title']?.toString() ?? 'Unknown',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurface.withOpacity(0.8),
                   ),
                 ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        colorScheme.secondary.withOpacity(0.15),
-                        colorScheme.primary.withOpacity(0.1),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: TextButton(
-                    onPressed: () {
-                      final collectionId = _verseOfTheDay!['collection_id'];
-                      final songNumber = _verseOfTheDay!['song_number'];
-                      if (collectionId != null && songNumber != null) {
-                        context.go('/lyrics/$collectionId/$songNumber');
-                      }
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: colorScheme.secondary,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                    ),
-                    child: const Text('Read More'),
-                  ),
+              ),
+              TextButton(
+                onPressed: () {
+                  final collectionId = _verseOfTheDay!['collection_id'];
+                  final songNumber = _verseOfTheDay!['song_number'];
+                  if (collectionId != null && songNumber != null) {
+                    context.go('/lyrics/$collectionId/$songNumber');
+                  }
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: colorScheme.primary,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 ),
-              ],
-            ),
-          ],
-        ),
+                child: const Text('Read More'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
