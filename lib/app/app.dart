@@ -6,6 +6,7 @@ import '../presentation/dashboard/pages/dashboard_page.dart';
 import '../presentation/song_list/pages/song_list_page.dart';
 import '../presentation/lyrics_viewer/pages/lyrics_page.dart';
 import '../presentation/settings/pages/settings_page.dart';
+import '../presentation/sermons/pages/sermon_page.dart';
 
 class SongLyricsApp extends StatelessWidget {
   final ThemeNotifier themeNotifier;
@@ -67,6 +68,10 @@ class SongLyricsApp extends StatelessWidget {
           path: '/settings',
           builder: (context, state) =>
               SettingsPage(themeNotifier: themeNotifier),
+        ),
+        GoRoute(
+          path: '/sermons',
+          builder: (context, state) => const SermonPage(),
         ),
         GoRoute(
           path: '/favorites',

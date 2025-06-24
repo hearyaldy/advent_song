@@ -978,116 +978,245 @@ class _DashboardPageState extends State<DashboardPage> {
     final colorScheme = theme.colorScheme;
     final isDarkMode = theme.brightness == Brightness.dark;
 
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDarkMode
-                    ? [
-                        colorScheme.surfaceContainerHighest,
-                        colorScheme.surface,
-                      ]
-                    : [
-                        colorScheme.surface,
-                        Colors.red.withOpacity(0.03),
-                      ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.red.withOpacity(0.2)),
-              boxShadow: [
-                BoxShadow(
-                  color: isDarkMode
-                      ? Colors.black.withOpacity(0.2)
-                      : Colors.red.withOpacity(0.1),
-                  blurRadius: isDarkMode ? 8 : 15,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                // Navigate to favorites
-                context.go('/favorites');
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  children: [
-                    const Icon(Icons.favorite, color: Colors.red, size: 28),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Favorites',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: colorScheme.onSurface,
-                      ),
-                      textAlign: TextAlign.center,
+        // First row
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDarkMode
+                        ? [
+                            colorScheme.surfaceContainerHighest,
+                            colorScheme.surface,
+                          ]
+                        : [
+                            colorScheme.surface,
+                            Colors.red.withOpacity(0.03),
+                          ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.red.withOpacity(0.2)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDarkMode
+                          ? Colors.black.withOpacity(0.2)
+                          : Colors.red.withOpacity(0.1),
+                      blurRadius: isDarkMode ? 8 : 15,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    // Navigate to favorites
+                    context.go('/favorites');
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.favorite, color: Colors.red, size: 28),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Favorites',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: colorScheme.onSurface,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDarkMode
+                        ? [
+                            colorScheme.surfaceContainerHighest,
+                            colorScheme.surface,
+                          ]
+                        : [
+                            colorScheme.surface,
+                            colorScheme.primary.withOpacity(0.03),
+                          ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border:
+                      Border.all(color: colorScheme.primary.withOpacity(0.2)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDarkMode
+                          ? Colors.black.withOpacity(0.2)
+                          : colorScheme.primary.withOpacity(0.1),
+                      blurRadius: isDarkMode ? 8 : 15,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    // Navigate to search
+                    context.go('/search');
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      children: [
+                        Icon(Icons.search,
+                            color: colorScheme.primary, size: 28),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Search',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: colorScheme.onSurface,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDarkMode
-                    ? [
-                        colorScheme.surfaceContainerHighest,
-                        colorScheme.surface,
-                      ]
-                    : [
-                        colorScheme.surface,
-                        colorScheme.primary.withOpacity(0.03),
-                      ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colorScheme.primary.withOpacity(0.2)),
-              boxShadow: [
-                BoxShadow(
-                  color: isDarkMode
-                      ? Colors.black.withOpacity(0.2)
-                      : colorScheme.primary.withOpacity(0.1),
-                  blurRadius: isDarkMode ? 8 : 15,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () {
-                // Navigate to search
-                context.go('/search');
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  children: [
-                    Icon(Icons.search, color: colorScheme.primary, size: 28),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Search',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: colorScheme.onSurface,
-                      ),
-                      textAlign: TextAlign.center,
+        const SizedBox(height: 12),
+        // Second row
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDarkMode
+                        ? [
+                            colorScheme.surfaceContainerHighest,
+                            colorScheme.surface,
+                          ]
+                        : [
+                            colorScheme.surface,
+                            Colors.purple.withOpacity(0.03),
+                          ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.purple.withOpacity(0.2)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDarkMode
+                          ? Colors.black.withOpacity(0.2)
+                          : Colors.purple.withOpacity(0.1),
+                      blurRadius: isDarkMode ? 8 : 15,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    // Navigate to sermon page
+                    context.go('/sermons');
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.church,
+                            color: Colors.purple, size: 28),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Sermon',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: colorScheme.onSurface,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDarkMode
+                        ? [
+                            colorScheme.surfaceContainerHighest,
+                            colorScheme.surface,
+                          ]
+                        : [
+                            colorScheme.surface,
+                            Colors.orange.withOpacity(0.03),
+                          ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.orange.withOpacity(0.2)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDarkMode
+                          ? Colors.black.withOpacity(0.2)
+                          : Colors.orange.withOpacity(0.1),
+                      blurRadius: isDarkMode ? 8 : 15,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    // TODO: Navigate to media page (future development)
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Media feature coming soon!'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.video_library,
+                            color: Colors.orange, size: 28),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Media',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: colorScheme.onSurface,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
