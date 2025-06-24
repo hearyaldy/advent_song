@@ -36,7 +36,7 @@ flutter:
   assets:
     - assets/data/
     - assets/images/
-    #- assets/images/collection_covers/
+    - assets/images/collection_covers/
     
   # Fonts (optional - for custom font families)
 fonts:

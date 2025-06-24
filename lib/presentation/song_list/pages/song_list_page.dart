@@ -34,6 +34,7 @@ class _SongListPageState extends State<SongListPage> {
   String _searchQuery = '';
   String _currentDate = '';
   bool _isLoading = true;
+  int _selectedNavIndex = 1; // Song List is the middle tab (index 1)
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -470,6 +471,7 @@ class _SongListPageState extends State<SongListPage> {
               foregroundColor: Colors.white,
             )
           : null,
+      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
@@ -723,6 +725,135 @@ class _SongListPageState extends State<SongListPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      currentIndex: _selectedNavIndex,
+      onTap: _onBottomNavTapped,
+      type: BottomNavigationBarType.fixed,
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard),
+          label: 'Dashboard',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.library_music),
+          label: 'Songs',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.settings),
+          label: 'Settings',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.info_outline),
+          label: 'About',
+        ),
+      ],
+    );
+  }
+
+  void _onBottomNavTapped(int index) {
+    if (index == _selectedNavIndex)
+      return; // Don't navigate if already on this tab
+
+    setState(() {
+      _selectedNavIndex = index;
+    });
+
+    switch (index) {
+      case 0: // Dashboard
+        context.go('/');
+        break;
+      case 1: // Songs (current page)
+        // Already on songs page, no action needed
+        break;
+      case 2: // Settings
+        context.go('/settings');
+        break;
+      case 3: // About
+        _showAboutDialog();
+        // Reset selection back to Songs since About is a dialog, not navigation
+        setState(() {
+          _selectedNavIndex = 1;
+        });
+        break;
+    }
+  }
+
+  void _showAboutDialog() {
+    showAboutDialog(
+      context: context,
+      applicationName: AppConstants.appName,
+      applicationVersion: '1.0.0',
+      applicationIcon: Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Theme.of(context).colorScheme.primary,
+              Theme.of(context).colorScheme.secondary,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Icon(
+          Icons.music_note,
+          size: 32,
+          color: Colors.white,
+        ),
+      ),
+      children: [
+        const SizedBox(height: 16),
+        const Text(
+            'A beautiful collection of spiritual songs for worship and praise.'),
+        const SizedBox(height: 16),
+        Text(
+          'Features:',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        const SizedBox(height: 8),
+        const Text('• Multiple song collections (LPMI, SRD, Iban, Pandak)'),
+        const Text('• Advanced search and filtering'),
+        const Text('• Favorites management'),
+        const Text('• Customizable text display settings'),
+        const Text('• Share and copy song lyrics'),
+        const Text('• Dark mode and color themes'),
+        const Text('• Verse of the day feature'),
+        const SizedBox(height: 16),
+        Text(
+          'Collections:',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        const SizedBox(height: 8),
+        ...AppConstants.collections.values.map(
+          (collection) => Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: collection.colorTheme,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text('${collection.displayName} - ${collection.description}'),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

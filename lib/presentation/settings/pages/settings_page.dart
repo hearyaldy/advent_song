@@ -1,12 +1,14 @@
-// TODO Implement this library.
 // lib/presentation/settings/pages/settings_page.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/services/theme_notifier.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  final ThemeNotifier themeNotifier;
+
+  const SettingsPage({super.key, required this.themeNotifier});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -16,54 +18,8 @@ class _SettingsPageState extends State<SettingsPage> {
   double _fontSize = 16.0;
   String _fontFamily = 'Roboto';
   TextAlign _textAlign = TextAlign.left;
-  bool _isDarkMode = false;
-  String _selectedColorTheme = 'default';
   bool _isLoading = true;
   bool _hasUnsavedChanges = false;
-
-  // Available color themes
-  final Map<String, Map<String, dynamic>> _colorThemes = {
-    'default': {
-      'name': 'Default Blue',
-      'primary': Color(0xFF6366F1),
-      'secondary': Color(0xFF8B5CF6),
-    },
-    'emerald': {
-      'name': 'Emerald Green',
-      'primary': Color(0xFF059669),
-      'secondary': Color(0xFF10B981),
-    },
-    'rose': {
-      'name': 'Rose Pink',
-      'primary': Color(0xFFE11D48),
-      'secondary': Color(0xFFF43F5E),
-    },
-    'amber': {
-      'name': 'Amber Orange',
-      'primary': Color(0xFFF59E0B),
-      'secondary': Color(0xFFFBBF24),
-    },
-    'violet': {
-      'name': 'Deep Violet',
-      'primary': Color(0xFF7C3AED),
-      'secondary': Color(0xFF8B5CF6),
-    },
-    'teal': {
-      'name': 'Ocean Teal',
-      'primary': Color(0xFF0D9488),
-      'secondary': Color(0xFF14B8A6),
-    },
-    'burgundy': {
-      'name': 'Burgundy Red',
-      'primary': Color(0xFF991B1B),
-      'secondary': Color(0xFFDC2626),
-    },
-    'forest': {
-      'name': 'Forest Green',
-      'primary': Color(0xFF166534),
-      'secondary': Color(0xFF15803D),
-    },
-  };
 
   @override
   void initState() {
@@ -73,14 +29,14 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _fontSize = prefs.getDouble('fontSize') ?? 16.0;
-      _fontFamily = prefs.getString('fontFamily') ?? 'Roboto';
-      _textAlign = TextAlign.values[prefs.getInt('textAlign') ?? 0];
-      _isDarkMode = prefs.getBool('isDarkMode') ?? false;
-      _selectedColorTheme = prefs.getString('selectedColorTheme') ?? 'default';
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _fontSize = prefs.getDouble('fontSize') ?? 16.0;
+        _fontFamily = prefs.getString('fontFamily') ?? 'Roboto';
+        _textAlign = TextAlign.values[prefs.getInt('textAlign') ?? 0];
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _saveSettings() async {
@@ -88,14 +44,12 @@ class _SettingsPageState extends State<SettingsPage> {
     await prefs.setDouble('fontSize', _fontSize);
     await prefs.setString('fontFamily', _fontFamily);
     await prefs.setInt('textAlign', _textAlign.index);
-    await prefs.setBool('isDarkMode', _isDarkMode);
-    await prefs.setString('selectedColorTheme', _selectedColorTheme);
-
-    setState(() {
-      _hasUnsavedChanges = false;
-    });
 
     if (mounted) {
+      setState(() {
+        _hasUnsavedChanges = false;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Settings saved successfully'),
@@ -110,29 +64,33 @@ class _SettingsPageState extends State<SettingsPage> {
     await prefs.remove('fontSize');
     await prefs.remove('fontFamily');
     await prefs.remove('textAlign');
-    await prefs.remove('isDarkMode');
-    await prefs.remove('selectedColorTheme');
 
-    setState(() {
-      _fontSize = 16.0;
-      _fontFamily = 'Roboto';
-      _textAlign = TextAlign.left;
-      _isDarkMode = false;
-      _selectedColorTheme = 'default';
-      _hasUnsavedChanges = true;
-    });
+    if (mounted) {
+      setState(() {
+        _fontSize = 16.0;
+        _fontFamily = 'Roboto';
+        _textAlign = TextAlign.left;
+        _hasUnsavedChanges = true;
+      });
 
-    await _saveSettings();
+      // Reset theme settings using theme notifier
+      await widget.themeNotifier.resetToDefaults();
+      await _saveSettings();
+    }
   }
 
   void _onSettingChanged() {
-    setState(() {
-      _hasUnsavedChanges = true;
-    });
+    if (mounted) {
+      setState(() {
+        _hasUnsavedChanges = true;
+      });
+    }
   }
 
   Future<bool> _onWillPop() async {
     if (!_hasUnsavedChanges) return true;
+
+    if (!mounted) return true;
 
     final shouldPop = await showDialog<bool>(
       context: context,
@@ -152,7 +110,7 @@ class _SettingsPageState extends State<SettingsPage> {
           FilledButton(
             onPressed: () async {
               await _saveSettings();
-              if (mounted) Navigator.of(context).pop(true);
+              if (context.mounted) Navigator.of(context).pop(true);
             },
             child: const Text('Save'),
           ),
@@ -183,7 +141,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     return PopScope(
       canPop: !_hasUnsavedChanges,
-      onPopInvoked: (bool didPop) async {
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
         if (didPop) return;
         final shouldPop = await _onWillPop();
         if (shouldPop && mounted) {
@@ -225,8 +183,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     break;
                 }
               },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
+              itemBuilder: (context) => const [
+                PopupMenuItem(
                   value: 'reset',
                   child: ListTile(
                     leading: Icon(Icons.refresh),
@@ -234,7 +192,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'about',
                   child: ListTile(
                     leading: Icon(Icons.info_outline),
@@ -350,7 +308,10 @@ class _SettingsPageState extends State<SettingsPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -394,7 +355,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildFontFamilySelector() {
-    final fontFamilies = [
+    const fontFamilies = [
       'Roboto',
       'SF Pro Display',
       'Arial',
@@ -494,26 +455,42 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildDarkModeSwitch() {
     return SwitchListTile(
-      secondary: Icon(_isDarkMode ? Icons.dark_mode : Icons.light_mode),
+      secondary: Icon(
+          widget.themeNotifier.isDarkMode ? Icons.dark_mode : Icons.light_mode),
       title: const Text('Dark Mode'),
-      subtitle:
-          Text(_isDarkMode ? 'Dark theme enabled' : 'Light theme enabled'),
-      value: _isDarkMode,
-      onChanged: (value) {
-        setState(() {
-          _isDarkMode = value;
-        });
-        _onSettingChanged();
-
+      subtitle: Text(widget.themeNotifier.isDarkMode
+          ? 'Dark theme enabled'
+          : 'Light theme enabled'),
+      value: widget.themeNotifier.isDarkMode,
+      onChanged: (value) async {
         // Show immediate feedback
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(value
-                ? 'Dark mode will apply after restart'
-                : 'Light mode will apply after restart'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(value
+                  ? 'Switching to Dark Mode...'
+                  : 'Switching to Light Mode...'),
+              duration: const Duration(milliseconds: 500),
+            ),
+          );
+
+          // Update theme using notifier - THIS APPLIES IMMEDIATELY
+          await widget.themeNotifier.updateDarkMode(value);
+
+          // Success feedback
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content:
+                    Text(value ? 'Dark mode enabled!' : 'Light mode enabled!'),
+                duration: const Duration(seconds: 1),
+                backgroundColor: value
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.secondary,
+              ),
+            );
+          }
+        }
       },
     );
   }
@@ -533,11 +510,12 @@ class _SettingsPageState extends State<SettingsPage> {
             mainAxisSpacing: 8,
             childAspectRatio: 3.5,
           ),
-          itemCount: _colorThemes.length,
+          itemCount: widget.themeNotifier.availableColorThemes.length,
           itemBuilder: (context, index) {
-            final themeKey = _colorThemes.keys.elementAt(index);
-            final themeData = _colorThemes[themeKey]!;
-            final isSelected = _selectedColorTheme == themeKey;
+            final themeKey = widget.themeNotifier.availableColorThemes[index];
+            final themeData = widget.themeNotifier.getColorThemeData(themeKey)!;
+            final isSelected =
+                widget.themeNotifier.selectedColorTheme == themeKey;
 
             return Container(
               decoration: BoxDecoration(
@@ -545,20 +523,46 @@ class _SettingsPageState extends State<SettingsPage> {
                 border: Border.all(
                   color: isSelected
                       ? themeData['primary'] as Color
-                      : Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      : Theme.of(context)
+                          .colorScheme
+                          .outline
+                          .withValues(alpha: 0.3),
                   width: isSelected ? 2 : 1,
                 ),
                 color: isSelected
-                    ? (themeData['primary'] as Color).withOpacity(0.1)
+                    ? (themeData['primary'] as Color).withValues(alpha: 0.1)
                     : null,
               ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(8),
-                onTap: () {
-                  setState(() {
-                    _selectedColorTheme = themeKey;
-                  });
-                  _onSettingChanged();
+                onTap: () async {
+                  if (themeKey == widget.themeNotifier.selectedColorTheme)
+                    return;
+
+                  if (mounted) {
+                    // Show immediate feedback
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Applying ${themeData['name']}...'),
+                        duration: const Duration(milliseconds: 500),
+                        backgroundColor: themeData['primary'] as Color,
+                      ),
+                    );
+
+                    // Update theme using notifier - THIS APPLIES IMMEDIATELY
+                    await widget.themeNotifier.updateColorTheme(themeKey);
+
+                    // Success feedback
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${themeData['name']} theme applied!'),
+                          duration: const Duration(seconds: 1),
+                          backgroundColor: themeData['primary'] as Color,
+                        ),
+                      );
+                    }
+                  }
                 },
                 child: Padding(
                   padding:
@@ -619,7 +623,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildPreviewCard() {
-    final selectedTheme = _colorThemes[_selectedColorTheme]!;
+    final selectedTheme = widget.themeNotifier.getColorThemeData(null)!;
     final primaryColor = selectedTheme['primary'] as Color;
     final secondaryColor = selectedTheme['secondary'] as Color;
 
@@ -644,7 +648,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: primaryColor.withOpacity(0.1),
+                    color: primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -662,12 +666,12 @@ class _SettingsPageState extends State<SettingsPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
-                color: _isDarkMode
+                color: widget.themeNotifier.isDarkMode
                     ? Colors.grey[800]
                     : Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: primaryColor.withOpacity(0.2),
+                  color: primaryColor.withValues(alpha: 0.2),
                 ),
               ),
               child: Column(
@@ -677,9 +681,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: primaryColor.withOpacity(0.1),
+                      color: primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: primaryColor.withOpacity(0.3)),
+                      border: Border.all(
+                          color: primaryColor.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       'Verse 1',
@@ -697,7 +702,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     style: TextStyle(
                       fontSize: _fontSize,
                       fontFamily: _fontFamily,
-                      color: _isDarkMode ? Colors.white : Colors.black,
+                      color: widget.themeNotifier.isDarkMode
+                          ? Colors.white
+                          : Colors.black,
                       height: 1.6,
                     ),
                     textAlign: _textAlign,
@@ -707,10 +714,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: secondaryColor.withOpacity(0.1),
+                      color: secondaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border:
-                          Border.all(color: secondaryColor.withOpacity(0.3)),
+                      border: Border.all(
+                          color: secondaryColor.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       'Korus',
@@ -730,7 +737,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       fontSize: _fontSize,
                       fontFamily: _fontFamily,
                       fontStyle: FontStyle.italic,
-                      color: _isDarkMode ? Colors.white70 : Colors.black87,
+                      color: widget.themeNotifier.isDarkMode
+                          ? Colors.white70
+                          : Colors.black87,
                       height: 1.6,
                     ),
                     textAlign: _textAlign,
@@ -787,7 +796,7 @@ class _SettingsPageState extends State<SettingsPage> {
             Text('• Color Theme: Choose your preferred color scheme'),
             SizedBox(height: 12),
             Text(
-                'All settings are automatically saved and will persist between app launches. Theme changes may require an app restart.'),
+                'All settings are automatically saved and will persist between app launches. Theme changes apply immediately throughout the app.'),
           ],
         ),
         actions: [
