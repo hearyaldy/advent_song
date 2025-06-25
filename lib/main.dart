@@ -14,11 +14,20 @@ void main() async {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-      print('Firebase initialized successfully');
+    } else {
+      Firebase.app(); // Use existing app
+    }
+    print('Firebase initialized successfully');
+  } on FirebaseException catch (e) {
+    if (e.code == 'duplicate-app') {
+      print('Firebase already initialized, using existing instance');
+    } else {
+      print('Firebase initialization error: $e');
+      runApp(FirebaseErrorApp(error: e.toString()));
+      return;
     }
   } catch (e) {
     print('Firebase initialization error: $e');
-    // Run error app if Firebase fails to initialize
     runApp(FirebaseErrorApp(error: e.toString()));
     return;
   }

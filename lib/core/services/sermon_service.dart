@@ -14,11 +14,17 @@ class SermonService {
       return data.entries.map((entry) {
         final sermonData = Map<String, dynamic>.from(entry.value as Map);
         sermonData['id'] = entry.key;
-        // Convert timestamp to DateTime if needed
-        if (sermonData['date'] is int) {
-          sermonData['date'] =
-              DateTime.fromMillisecondsSinceEpoch(sermonData['date']);
+
+        // Handle date conversion flexibly
+        final dateValue = sermonData['date'];
+        if (dateValue is int) {
+          sermonData['date'] = DateTime.fromMillisecondsSinceEpoch(dateValue);
+        } else if (dateValue is String) {
+          sermonData['date'] = DateTime.tryParse(dateValue) ?? DateTime.now();
+        } else {
+          sermonData['date'] = DateTime.now();
         }
+
         return sermonData;
       }).toList()
         ..sort(
