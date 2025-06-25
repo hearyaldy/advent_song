@@ -7,9 +7,12 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/json_loader_service.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/favorites_notifier.dart';
 
 class FigmaDashboardPage extends StatefulWidget {
-  const FigmaDashboardPage({super.key});
+  final FavoritesNotifier favoritesNotifier;
+
+  const FigmaDashboardPage({super.key, required this.favoritesNotifier});
 
   @override
   State<FigmaDashboardPage> createState() => _FigmaDashboardPageState();
@@ -98,8 +101,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
   }
 
   Future<void> _loadRecentFavorites() async {
-    final prefs = await SharedPreferences.getInstance();
-    final favoriteSongs = prefs.getStringList('favorites') ?? [];
+    final favoriteSongs = widget.favoritesNotifier.favorites;
 
     if (favoriteSongs.isEmpty) return;
 
@@ -768,7 +770,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 2.5,
+        childAspectRatio: 3.0, // Increased from 2.5 to prevent text cutoff
       ),
       itemCount: actions.length,
       itemBuilder: (context, index) {
@@ -819,24 +821,27 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12), // Reduced from 16
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10), // Reduced from 12
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10), // Reduced from 12
                   ),
-                  child: Icon(icon, color: color, size: 24),
+                  child: Icon(icon, color: color, size: 20), // Reduced from 24
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12), // Reduced from 16
                 Expanded(
                   child: Text(
                     label,
-                    style: theme.textTheme.titleMedium?.copyWith(
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      // Changed from titleMedium
                       fontWeight: FontWeight.w600,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],

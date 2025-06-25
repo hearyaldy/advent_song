@@ -732,7 +732,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildCollectionsGrid() {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final isDarkMode = theme.brightness == Brightness.dark;
 
     return GridView.builder(

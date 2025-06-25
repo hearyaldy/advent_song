@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/json_loader_service.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/services/favorites_notifier.dart';
 import '../../../data/models/song.dart';
 import '../../shared/widgets/loading_widget.dart';
 import '../../shared/widgets/error_widget.dart';
@@ -12,11 +13,13 @@ import '../../shared/widgets/error_widget.dart';
 class LyricsPage extends StatefulWidget {
   final String collectionId;
   final String songId;
+  final FavoritesNotifier favoritesNotifier;
 
   const LyricsPage({
     super.key,
     required this.collectionId,
     required this.songId,
+    required this.favoritesNotifier,
   });
 
   @override
@@ -28,7 +31,6 @@ class _LyricsPageState extends State<LyricsPage> {
   double _fontSize = AppConstants.defaultFontSize;
   String _fontFamily = 'Roboto';
   TextAlign _textAlign = TextAlign.left;
-  bool _isFavorite = false;
   bool _isLoading = true;
 
   final ScrollController _scrollController = ScrollController();
@@ -53,38 +55,26 @@ class _LyricsPageState extends State<LyricsPage> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    final favoriteSongs = prefs.getStringList('favorites') ?? [];
 
     setState(() {
       _fontSize = prefs.getDouble('fontSize') ?? AppConstants.defaultFontSize;
       _fontFamily = prefs.getString('fontFamily') ?? 'Roboto';
       _textAlign = TextAlign.values[prefs.getInt('textAlign') ?? 0];
-      _isFavorite = favoriteSongs.contains(widget.songId);
       _isLoading = false;
     });
   }
 
   Future<void> _toggleFavorite() async {
-    final prefs = await SharedPreferences.getInstance();
-    final favoriteSongs = prefs.getStringList('favorites') ?? [];
-
-    if (_isFavorite) {
-      favoriteSongs.remove(widget.songId);
-    } else {
-      favoriteSongs.add(widget.songId);
-    }
-
-    await prefs.setStringList('favorites', favoriteSongs);
-    setState(() {
-      _isFavorite = !_isFavorite;
-    });
+    await widget.favoritesNotifier.toggleFavorite(widget.songId);
 
     // Show feedback
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _isFavorite ? 'Added to favorites' : 'Removed from favorites',
+            widget.favoritesNotifier.isFavorite(widget.songId)
+                ? 'Added to favorites'
+                : 'Removed from favorites',
           ),
           duration: const Duration(seconds: 1),
         ),
@@ -181,288 +171,297 @@ $lyrics''';
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: FutureBuilder<Song?>(
-        future: _songFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const LoadingWidget();
-          }
+      body: AnimatedBuilder(
+        animation: widget.favoritesNotifier,
+        builder: (context, child) {
+          return FutureBuilder<Song?>(
+            future: _songFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const LoadingWidget();
+              }
 
-          if (snapshot.hasError || snapshot.data == null) {
-            return CustomErrorWidget(
-              message: snapshot.data == null
-                  ? 'Song not found'
-                  : 'Failed to load song: ${snapshot.error}',
-              onRetry: () {
-                setState(() {
-                  _loadSong();
-                });
-              },
-            );
-          }
+              if (snapshot.hasError || snapshot.data == null) {
+                return CustomErrorWidget(
+                  message: snapshot.data == null
+                      ? 'Song not found'
+                      : 'Failed to load song: ${snapshot.error}',
+                  onRetry: () {
+                    setState(() {
+                      _loadSong();
+                    });
+                  },
+                );
+              }
 
-          final song = snapshot.data!;
+              final song = snapshot.data!;
+              final isFavorite =
+                  widget.favoritesNotifier.isFavorite(widget.songId);
 
-          return CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              // App bar with collection cover image
-              SliverAppBar(
-                expandedHeight: 200,
-                pinned: true,
-                backgroundColor: metadata?.colorTheme ?? colorScheme.primary,
-                foregroundColor: Colors.white,
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () =>
-                      context.go('/collection/${widget.collectionId}'),
-                ),
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // Collection-specific cover image
-                      Image.asset(
-                        metadata?.coverImage ??
-                            'assets/images/header_image.png',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          // Fallback to gradient if image fails to load
-                          return Container(
+              return CustomScrollView(
+                controller: _scrollController,
+                slivers: [
+                  // App bar with collection cover image
+                  SliverAppBar(
+                    expandedHeight: 200,
+                    pinned: true,
+                    backgroundColor:
+                        metadata?.colorTheme ?? colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    leading: IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () =>
+                          context.go('/collection/${widget.collectionId}'),
+                    ),
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          // Collection-specific cover image
+                          Image.asset(
+                            metadata?.coverImage ??
+                                'assets/images/header_image.png',
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback to gradient if image fails to load
+                              return Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      metadata?.colorTheme ??
+                                          colorScheme.primary,
+                                      colorScheme.secondary,
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          // Dark overlay for better text readability
+                          Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
                                 colors: [
-                                  metadata?.colorTheme ?? colorScheme.primary,
-                                  colorScheme.secondary,
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.7),
                                 ],
                               ),
+                            ),
+                          ),
+                          // Song information
+                          Positioned(
+                            bottom: 16,
+                            left: 16,
+                            right: 80,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.4),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    '${song.songNumber} | ${metadata?.displayName ?? 'Unknown Collection'}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  song.songTitle,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    shadows: [
+                                      Shadow(
+                                        offset: Offset(0, 1),
+                                        blurRadius: 3,
+                                        color: Colors.black54,
+                                      ),
+                                    ],
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    actions: [
+                      IconButton(
+                        icon: Icon(
+                          isFavorite ? Icons.favorite : Icons.favorite_border,
+                        ),
+                        onPressed: _toggleFavorite,
+                        tooltip: isFavorite
+                            ? 'Remove from favorites'
+                            : 'Add to favorites',
+                      ),
+                      PopupMenuButton<String>(
+                        onSelected: (value) {
+                          switch (value) {
+                            case 'share':
+                              _shareSong(song);
+                              break;
+                            case 'copy':
+                              _copyToClipboard(song);
+                              break;
+                            case 'settings':
+                              context.go('/settings');
+                              break;
+                            case 'font_increase':
+                              _increaseFontSize();
+                              break;
+                            case 'font_decrease':
+                              _decreaseFontSize();
+                              break;
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'font_decrease',
+                            child: ListTile(
+                              leading: Icon(Icons.text_decrease),
+                              title: Text('Decrease Font'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'font_increase',
+                            child: ListTile(
+                              leading: Icon(Icons.text_increase),
+                              title: Text('Increase Font'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem(
+                            value: 'share',
+                            child: ListTile(
+                              leading: Icon(Icons.share),
+                              title: Text('Share'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'copy',
+                            child: ListTile(
+                              leading: Icon(Icons.copy),
+                              title: Text('Copy'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem(
+                            value: 'settings',
+                            child: ListTile(
+                              leading: Icon(Icons.settings),
+                              title: Text('Settings'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  // Font Size Indicator
+                  SliverToBoxAdapter(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.format_size, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Font Size: ${_fontSize.toInt()}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Song verses
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32.0,
+                      vertical: 16.0,
+                    ),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final verse = song.verses[index];
+                          final isKorus =
+                              verse.verseNumber.toLowerCase() == 'korus';
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 32.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Verse number/title
+                                if (song.verses.length > 1)
+                                  Text(
+                                    verse.verseNumber,
+                                    style: TextStyle(
+                                      fontSize: _fontSize + 6,
+                                      fontFamily: _fontFamily,
+                                      fontStyle: isKorus
+                                          ? FontStyle.italic
+                                          : FontStyle.normal,
+                                      fontWeight: FontWeight.bold,
+                                      color: isKorus
+                                          ? colorScheme.secondary
+                                          : (metadata?.colorTheme ??
+                                              colorScheme.primary),
+                                    ),
+                                  ),
+                                if (song.verses.length > 1)
+                                  const SizedBox(height: 12),
+                                // Verse lyrics
+                                SelectableText(
+                                  verse.lyrics.replaceAll('\\n', '\n'),
+                                  style: TextStyle(
+                                    fontSize: _fontSize,
+                                    fontFamily: _fontFamily,
+                                    fontStyle: isKorus
+                                        ? FontStyle.italic
+                                        : FontStyle.normal,
+                                    color: colorScheme.onSurface,
+                                    height: 1.8,
+                                    letterSpacing: 0.3,
+                                  ),
+                                  textAlign: _textAlign,
+                                ),
+                              ],
                             ),
                           );
                         },
+                        childCount: song.verses.length,
                       ),
-                      // Dark overlay for better text readability
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.7),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // Song information
-                      Positioned(
-                        bottom: 16,
-                        left: 16,
-                        right: 80,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.4),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                '${song.songNumber} | ${metadata?.displayName ?? 'Unknown Collection'}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              song.songTitle,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                shadows: [
-                                  Shadow(
-                                    offset: Offset(0, 1),
-                                    blurRadius: 3,
-                                    color: Colors.black54,
-                                  ),
-                                ],
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                actions: [
-                  IconButton(
-                    icon: Icon(
-                      _isFavorite ? Icons.favorite : Icons.favorite_border,
                     ),
-                    onPressed: _toggleFavorite,
-                    tooltip: _isFavorite
-                        ? 'Remove from favorites'
-                        : 'Add to favorites',
-                  ),
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      switch (value) {
-                        case 'share':
-                          _shareSong(song);
-                          break;
-                        case 'copy':
-                          _copyToClipboard(song);
-                          break;
-                        case 'settings':
-                          context.go('/settings');
-                          break;
-                        case 'font_increase':
-                          _increaseFontSize();
-                          break;
-                        case 'font_decrease':
-                          _decreaseFontSize();
-                          break;
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'font_decrease',
-                        child: ListTile(
-                          leading: Icon(Icons.text_decrease),
-                          title: Text('Decrease Font'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'font_increase',
-                        child: ListTile(
-                          leading: Icon(Icons.text_increase),
-                          title: Text('Increase Font'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuDivider(),
-                      const PopupMenuItem(
-                        value: 'share',
-                        child: ListTile(
-                          leading: Icon(Icons.share),
-                          title: Text('Share'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'copy',
-                        child: ListTile(
-                          leading: Icon(Icons.copy),
-                          title: Text('Copy'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuDivider(),
-                      const PopupMenuItem(
-                        value: 'settings',
-                        child: ListTile(
-                          leading: Icon(Icons.settings),
-                          title: Text('Settings'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                    ],
                   ),
                 ],
-              ),
-
-              // Font Size Indicator
-              SliverToBoxAdapter(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.format_size, size: 16),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Font Size: ${_fontSize.toInt()}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Song verses
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32.0,
-                  vertical: 16.0,
-                ),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final verse = song.verses[index];
-                      final isKorus =
-                          verse.verseNumber.toLowerCase() == 'korus';
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 32.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Verse number/title
-                            if (song.verses.length > 1)
-                              Text(
-                                verse.verseNumber,
-                                style: TextStyle(
-                                  fontSize: _fontSize + 6,
-                                  fontFamily: _fontFamily,
-                                  fontStyle: isKorus
-                                      ? FontStyle.italic
-                                      : FontStyle.normal,
-                                  fontWeight: FontWeight.bold,
-                                  color: isKorus
-                                      ? colorScheme.secondary
-                                      : (metadata?.colorTheme ??
-                                          colorScheme.primary),
-                                ),
-                              ),
-                            if (song.verses.length > 1)
-                              const SizedBox(height: 12),
-                            // Verse lyrics
-                            SelectableText(
-                              verse.lyrics.replaceAll('\\n', '\n'),
-                              style: TextStyle(
-                                fontSize: _fontSize,
-                                fontFamily: _fontFamily,
-                                fontStyle: isKorus
-                                    ? FontStyle.italic
-                                    : FontStyle.normal,
-                                color: colorScheme.onSurface,
-                                height: 1.8,
-                                letterSpacing: 0.3,
-                              ),
-                              textAlign: _textAlign,
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                    childCount: song.verses.length,
-                  ),
-                ),
-              ),
-            ],
+              );
+            },
           );
         },
       ),
@@ -472,51 +471,59 @@ $lyrics''';
         mini: true,
         child: const Icon(Icons.keyboard_arrow_up),
       ),
-      bottomNavigationBar: FutureBuilder<Song?>(
-        future: _songFuture,
-        builder: (context, snapshot) {
-          if (snapshot.data == null) return const SizedBox();
-          final song = snapshot.data!;
+      bottomNavigationBar: AnimatedBuilder(
+        animation: widget.favoritesNotifier,
+        builder: (context, child) {
+          return FutureBuilder<Song?>(
+            future: _songFuture,
+            builder: (context, snapshot) {
+              if (snapshot.data == null) return const SizedBox();
+              final song = snapshot.data!;
+              final isFavorite =
+                  widget.favoritesNotifier.isFavorite(widget.songId);
 
-          return Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              border: Border(
-                top: BorderSide(color: colorScheme.outline.withOpacity(0.2)),
-              ),
-            ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _toggleFavorite,
-                      icon: Icon(
-                        _isFavorite ? Icons.favorite : Icons.favorite_border,
+              return Container(
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  border: Border(
+                    top:
+                        BorderSide(color: colorScheme.outline.withOpacity(0.2)),
+                  ),
+                ),
+                child: SafeArea(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _toggleFavorite,
+                          icon: Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                          ),
+                          label: Text(
+                              isFavorite ? 'Favorited' : 'Add to Favorites'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: isFavorite
+                                ? colorScheme.error
+                                : (metadata?.colorTheme ?? colorScheme.primary),
+                          ),
+                        ),
                       ),
-                      label:
-                          Text(_isFavorite ? 'Favorited' : 'Add to Favorites'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _isFavorite
-                            ? colorScheme.error
-                            : (metadata?.colorTheme ?? colorScheme.primary),
+                      const SizedBox(width: 12),
+                      FilledButton.tonal(
+                        onPressed: () => _shareSong(song),
+                        child: const Icon(Icons.share),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      FilledButton.tonal(
+                        onPressed: () => _copyToClipboard(song),
+                        child: const Icon(Icons.copy),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  FilledButton.tonal(
-                    onPressed: () => _shareSong(song),
-                    child: const Icon(Icons.share),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.tonal(
-                    onPressed: () => _copyToClipboard(song),
-                    child: const Icon(Icons.copy),
-                  ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           );
         },
       ),

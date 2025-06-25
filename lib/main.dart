@@ -1,10 +1,11 @@
-// lib/main.dart
+// lib/main.dart - Updated with FavoritesNotifier
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'firebase_options.dart';
 import 'app/app.dart';
 import 'core/services/theme_notifier.dart';
+import 'core/services/favorites_notifier.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,13 +27,11 @@ void main() async {
       print('Firebase offline persistence enabled');
     } catch (e) {
       print('Failed to enable offline persistence: $e');
-      // Continue anyway - offline persistence is not critical for app function
     }
   } on FirebaseException catch (e) {
     if (e.code == 'duplicate-app') {
       print('Firebase already initialized, using existing instance');
 
-      // Try to enable persistence even for existing app
       try {
         FirebaseDatabase.instance.setPersistenceEnabled(true);
         print('Firebase offline persistence enabled');
@@ -50,11 +49,19 @@ void main() async {
     return;
   }
 
-  // Create and initialize theme notifier
+  // Create and initialize notifiers
   final themeNotifier = ThemeNotifier();
-  await themeNotifier.initialize();
+  final favoritesNotifier = FavoritesNotifier();
 
-  runApp(SongLyricsApp(themeNotifier: themeNotifier));
+  await Future.wait([
+    themeNotifier.initialize(),
+    favoritesNotifier.initialize(),
+  ]);
+
+  runApp(SongLyricsApp(
+    themeNotifier: themeNotifier,
+    favoritesNotifier: favoritesNotifier,
+  ));
 }
 
 // Error app for Firebase initialization failures
@@ -97,7 +104,6 @@ class FirebaseErrorApp extends StatelessWidget {
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () {
-                    // Restart the app
                     main();
                   },
                   child: const Text('Retry'),
