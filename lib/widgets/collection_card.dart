@@ -21,7 +21,7 @@ class CollectionCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Container(
+        child: SizedBox(
           height: 200,
           child: Stack(
             fit: StackFit.expand,

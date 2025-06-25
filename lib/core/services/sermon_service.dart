@@ -1,22 +1,28 @@
 // lib/core/services/sermon_service.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class SermonService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static const String _collection = 'sermons';
+  static final FirebaseDatabase _database = FirebaseDatabase.instance;
+  static final DatabaseReference _sermonsRef = _database.ref().child('sermons');
 
   // Get all sermons
   static Stream<List<Map<String, dynamic>>> getSermons() {
-    return _firestore
-        .collection(_collection)
-        .orderBy('date', descending: true)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return data;
-      }).toList();
+    return _sermonsRef.orderByChild('date').onValue.map((event) {
+      final data = event.snapshot.value as Map<dynamic, dynamic>?;
+      if (data == null) return <Map<String, dynamic>>[];
+
+      return data.entries.map((entry) {
+        final sermonData = Map<String, dynamic>.from(entry.value as Map);
+        sermonData['id'] = entry.key;
+        // Convert timestamp to DateTime if needed
+        if (sermonData['date'] is int) {
+          sermonData['date'] =
+              DateTime.fromMillisecondsSinceEpoch(sermonData['date']);
+        }
+        return sermonData;
+      }).toList()
+        ..sort(
+            (a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
     });
   }
 
@@ -33,19 +39,19 @@ class SermonService {
     String? videoUrl,
   }) async {
     try {
-      await _firestore.collection(_collection).add({
+      await _sermonsRef.push().set({
         'title': title,
         'pastor': pastor,
-        'date': Timestamp.fromDate(date),
+        'date': date.millisecondsSinceEpoch,
         'series': series,
         'description': description,
         'duration': duration,
         'tags': tags,
-        'audioUrl': audioUrl,
-        'videoUrl': videoUrl,
+        'audioUrl': audioUrl ?? '',
+        'videoUrl': videoUrl ?? '',
         'hasAudio': audioUrl != null && audioUrl.isNotEmpty,
         'hasVideo': videoUrl != null && videoUrl.isNotEmpty,
-        'createdAt': FieldValue.serverTimestamp(),
+        'createdAt': ServerValue.timestamp,
         'isNew': true,
       });
       return true;
@@ -58,7 +64,11 @@ class SermonService {
   static Future<bool> updateSermon(
       String sermonId, Map<String, dynamic> data) async {
     try {
-      await _firestore.collection(_collection).doc(sermonId).update(data);
+      // Convert DateTime to timestamp if present
+      if (data['date'] is DateTime) {
+        data['date'] = (data['date'] as DateTime).millisecondsSinceEpoch;
+      }
+      await _sermonsRef.child(sermonId).update(data);
       return true;
     } catch (e) {
       return false;
@@ -68,7 +78,7 @@ class SermonService {
   // Delete sermon (admin only)
   static Future<bool> deleteSermon(String sermonId) async {
     try {
-      await _firestore.collection(_collection).doc(sermonId).delete();
+      await _sermonsRef.child(sermonId).remove();
       return true;
     } catch (e) {
       return false;
@@ -78,7 +88,7 @@ class SermonService {
   // Mark sermon as not new
   static Future<void> markAsViewed(String sermonId) async {
     try {
-      await _firestore.collection(_collection).doc(sermonId).update({
+      await _sermonsRef.child(sermonId).update({
         'isNew': false,
       });
     } catch (e) {

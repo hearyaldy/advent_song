@@ -31,6 +31,7 @@ class _DashboardPageState extends State<DashboardPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoggingIn = false;
+  bool _showPassword = false;
 
   @override
   void initState() {
@@ -175,7 +176,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Future<void> _handleLogin() async {
     if (_emailController.text.trim().isEmpty ||
         _passwordController.text.isEmpty) {
-      _showMessage('Please enter email and password');
+      _showMessage('Please enter email and password', isError: true);
       return;
     }
 
@@ -183,7 +184,7 @@ class _DashboardPageState extends State<DashboardPage> {
       _isLoggingIn = true;
     });
 
-    final success = await AuthService.login(
+    final result = await AuthService.login(
       _emailController.text.trim(),
       _passwordController.text,
     );
@@ -192,14 +193,31 @@ class _DashboardPageState extends State<DashboardPage> {
       _isLoggingIn = false;
     });
 
-    if (success) {
+    if (result.isSuccess) {
       await _checkAuthState();
       setState(() {});
       _emailController.clear();
       _passwordController.clear();
-      _showMessage('Login successful!');
+      _showMessage('Welcome back!', isError: false);
     } else {
-      _showMessage('Login failed. Please check your credentials.');
+      _showMessage(result.message, isError: true);
+    }
+  }
+
+  Future<void> _handleForgotPassword() async {
+    if (_emailController.text.trim().isEmpty) {
+      _showMessage('Please enter your email address first', isError: true);
+      return;
+    }
+
+    final result =
+        await AuthService.resetPassword(_emailController.text.trim());
+
+    if (result.isSuccess) {
+      _showMessage('Password reset email sent. Check your inbox.',
+          isError: false);
+    } else {
+      _showMessage(result.message, isError: true);
     }
   }
 
@@ -207,12 +225,16 @@ class _DashboardPageState extends State<DashboardPage> {
     await AuthService.logout();
     await _checkAuthState();
     setState(() {});
-    _showMessage('Logged out successfully');
+    _showMessage('Logged out successfully', isError: false);
   }
 
-  void _showMessage(String message) {
+  void _showMessage(String message, {required bool isError}) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -467,16 +489,35 @@ class _DashboardPageState extends State<DashboardPage> {
             prefixIcon: Icon(Icons.email),
           ),
           keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
         ),
         const SizedBox(height: 12),
         TextField(
           controller: _passwordController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Password',
-            prefixIcon: Icon(Icons.lock),
+            prefixIcon: const Icon(Icons.lock),
+            suffixIcon: IconButton(
+              icon:
+                  Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
+              onPressed: () {
+                setState(() {
+                  _showPassword = !_showPassword;
+                });
+              },
+            ),
           ),
-          obscureText: true,
+          obscureText: !_showPassword,
+          textInputAction: TextInputAction.done,
           onSubmitted: (_) => _handleLogin(),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: _handleForgotPassword,
+            child: const Text('Forgot Password?'),
+          ),
         ),
         const SizedBox(height: 16),
         SizedBox(
@@ -505,7 +546,7 @@ class _DashboardPageState extends State<DashboardPage> {
       children: [
         Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.green),
+            const Icon(Icons.check_circle, color: Colors.green),
             const SizedBox(width: 8),
             Text(
               'Welcome, ${AuthService.userName}',

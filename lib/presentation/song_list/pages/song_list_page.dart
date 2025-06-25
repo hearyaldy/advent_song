@@ -6,9 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/json_loader_service.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/models/song.dart';
-import '../../../data/models/song_collection.dart';
-import '../../shared/widgets/loading_widget.dart';
-import '../../shared/widgets/error_widget.dart';
 
 class SongListPage extends StatefulWidget {
   final String collectionId;
@@ -205,7 +202,7 @@ class _SongListPageState extends State<SongListPage> {
           // Header with collection cover image
           Stack(
             children: [
-              Container(
+              SizedBox(
                 width: double.infinity,
                 height: 120,
                 child: ClipRect(
@@ -788,8 +785,9 @@ class _SongListPageState extends State<SongListPage> {
   }
 
   void _onBottomNavTapped(int index) {
-    if (index == _selectedNavIndex)
+    if (index == _selectedNavIndex) {
       return; // Don't navigate if already on this tab
+    }
 
     setState(() {
       _selectedNavIndex = index;
