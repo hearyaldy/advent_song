@@ -7,6 +7,8 @@ import '../presentation/song_list/pages/song_list_page.dart';
 import '../presentation/lyrics_viewer/pages/lyrics_page.dart';
 import '../presentation/settings/pages/settings_page.dart';
 import '../presentation/sermons/pages/sermon_page.dart';
+import '../presentation/admin/pages/admin_login_page.dart';
+import '../presentation/admin/pages/sermon_management_page.dart';
 
 class SongLyricsApp extends StatelessWidget {
   final ThemeNotifier themeNotifier;
@@ -72,6 +74,14 @@ class SongLyricsApp extends StatelessWidget {
         GoRoute(
           path: '/sermons',
           builder: (context, state) => const SermonPage(),
+        ),
+        GoRoute(
+          path: '/admin/login',
+          builder: (context, state) => const AdminLoginPage(),
+        ),
+        GoRoute(
+          path: '/admin/sermons',
+          builder: (context, state) => const SermonManagementPage(),
         ),
         GoRoute(
           path: '/favorites',

@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/json_loader_service.dart';
-import '../../../core/services/auth_service.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -23,27 +22,10 @@ class _DashboardPageState extends State<DashboardPage> {
   String _currentDate = '';
   String _greeting = '';
 
-  // Auth state
-  bool _isLoggedIn = false;
-  bool _isAdmin = false;
-
-  // Login form
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _isLoggingIn = false;
-  bool _showPassword = false;
-
   @override
   void initState() {
     super.initState();
     _initializePage();
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
   }
 
   Future<void> _initializePage() async {
@@ -51,21 +33,11 @@ class _DashboardPageState extends State<DashboardPage> {
       _loadCollectionCounts(),
       _loadRecentFavorites(),
       _loadVerseOfTheDay(),
-      _checkAuthState(),
     ]);
     _setGreetingAndDate();
     setState(() {
       _isLoading = false;
     });
-  }
-
-  Future<void> _checkAuthState() async {
-    _isLoggedIn = AuthService.isLoggedIn;
-    if (_isLoggedIn) {
-      _isAdmin = await AuthService.isAdmin;
-      print('User ID: ${AuthService.currentUser?.uid}');
-      print('Is Admin: $_isAdmin');
-    }
   }
 
   void _setGreetingAndDate() {
@@ -103,7 +75,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
     List<Map<String, dynamic>> allSongs = [];
 
-    // Load all songs from all collections
     for (final entry in AppConstants.collections.entries) {
       try {
         final songs =
@@ -127,7 +98,6 @@ class _DashboardPageState extends State<DashboardPage> {
       }
     }
 
-    // Get recent favorites (last 5)
     final recentFavoriteNumbers = favoriteSongs.take(5).toList();
     _recentFavorites = allSongs
         .where((song) => recentFavoriteNumbers.contains(song['song_number']))
@@ -164,7 +134,6 @@ class _DashboardPageState extends State<DashboardPage> {
       }
 
       if (allVerses.isNotEmpty) {
-        // Use date as seed for consistent daily verse
         final today = DateTime.now();
         final seed = today.year * 10000 + today.month * 100 + today.day;
         final random = Random(seed);
@@ -173,71 +142,6 @@ class _DashboardPageState extends State<DashboardPage> {
     } catch (e) {
       // Handle error silently
     }
-  }
-
-  Future<void> _handleLogin() async {
-    if (_emailController.text.trim().isEmpty ||
-        _passwordController.text.isEmpty) {
-      _showMessage('Please enter email and password', isError: true);
-      return;
-    }
-
-    setState(() {
-      _isLoggingIn = true;
-    });
-
-    final result = await AuthService.login(
-      _emailController.text.trim(),
-      _passwordController.text,
-    );
-
-    setState(() {
-      _isLoggingIn = false;
-    });
-
-    if (result.isSuccess) {
-      await _checkAuthState();
-      setState(() {});
-      _emailController.clear();
-      _passwordController.clear();
-      _showMessage('Welcome back!', isError: false);
-    } else {
-      _showMessage(result.message, isError: true);
-    }
-  }
-
-  Future<void> _handleForgotPassword() async {
-    if (_emailController.text.trim().isEmpty) {
-      _showMessage('Please enter your email address first', isError: true);
-      return;
-    }
-
-    final result =
-        await AuthService.resetPassword(_emailController.text.trim());
-
-    if (result.isSuccess) {
-      _showMessage('Password reset email sent. Check your inbox.',
-          isError: false);
-    } else {
-      _showMessage(result.message, isError: true);
-    }
-  }
-
-  Future<void> _handleLogout() async {
-    await AuthService.logout();
-    await _checkAuthState();
-    setState(() {});
-    _showMessage('Logged out successfully', isError: false);
-  }
-
-  void _showMessage(String message, {required bool isError}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override
@@ -270,7 +174,7 @@ class _DashboardPageState extends State<DashboardPage> {
       backgroundColor: colorScheme.surface,
       body: CustomScrollView(
         slivers: [
-          // App Bar with custom title positioning
+          // App Bar
           SliverAppBar(
             expandedHeight: 120,
             floating: true,
@@ -281,7 +185,6 @@ class _DashboardPageState extends State<DashboardPage> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Background gradient
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -294,7 +197,6 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                     ),
                   ),
-                  // Optional background image
                   Image.asset(
                     'assets/images/header_image.png',
                     fit: BoxFit.cover,
@@ -313,7 +215,6 @@ class _DashboardPageState extends State<DashboardPage> {
                       );
                     },
                   ),
-                  // Overlay for better text contrast
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -326,11 +227,10 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                     ),
                   ),
-                  // CUSTOM POSITIONED TITLE AND DATE
                   Positioned(
                     bottom: 16,
                     left: 16,
-                    right: 80, // Leave space for settings icon
+                    right: 80,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -373,13 +273,8 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             actions: [
               IconButton(
-                icon: const Icon(
-                  Icons.settings,
-                  color: Colors.white,
-                ),
-                onPressed: () {
-                  context.go('/settings');
-                },
+                icon: const Icon(Icons.settings, color: Colors.white),
+                onPressed: () => context.go('/settings'),
               ),
             ],
           ),
@@ -393,8 +288,8 @@ class _DashboardPageState extends State<DashboardPage> {
                 _buildGreetingCard(),
                 const SizedBox(height: 24),
 
-                // Auth Card
-                _buildAuthCard(),
+                // Admin Access Button
+                _buildAdminAccessCard(),
                 const SizedBox(height: 24),
 
                 // Verse of the Day
@@ -426,7 +321,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 const SizedBox(height: 16),
                 _buildQuickActions(),
 
-                const SizedBox(height: 40), // Bottom padding
+                const SizedBox(height: 40),
               ]),
             ),
           ),
@@ -435,7 +330,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildAuthCard() {
+  Widget _buildAdminAccessCard() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -445,9 +340,7 @@ class _DashboardPageState extends State<DashboardPage> {
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _isLoggedIn
-              ? Colors.green.withOpacity(0.3)
-              : colorScheme.outline.withOpacity(0.2),
+          color: Colors.orange.withOpacity(0.3),
           width: 1,
         ),
         boxShadow: [
@@ -458,151 +351,57 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ],
       ),
-      child: _isLoggedIn ? _buildLoggedInView() : _buildLoginForm(),
-    );
-  }
-
-  Widget _buildLoginForm() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.admin_panel_settings, color: colorScheme.primary),
-            const SizedBox(width: 8),
-            Text(
-              'Admin Login',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.orange.withOpacity(0.3),
+                width: 1,
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _emailController,
-          decoration: const InputDecoration(
-            labelText: 'Email',
-            hintText: 'admin@church.com',
-            prefixIcon: Icon(Icons.email),
-          ),
-          keyboardType: TextInputType.emailAddress,
-          textInputAction: TextInputAction.next,
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _passwordController,
-          decoration: InputDecoration(
-            labelText: 'Password',
-            prefixIcon: const Icon(Icons.lock),
-            suffixIcon: IconButton(
-              icon:
-                  Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
-              onPressed: () {
-                setState(() {
-                  _showPassword = !_showPassword;
-                });
-              },
+            child: const Icon(
+              Icons.admin_panel_settings,
+              color: Colors.orange,
+              size: 24,
             ),
           ),
-          obscureText: !_showPassword,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) => _handleLogin(),
-        ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: _handleForgotPassword,
-            child: const Text('Forgot Password?'),
-          ),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _isLoggingIn ? null : _handleLogin,
-            child: _isLoggingIn
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Login'),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLoggedInView() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 8),
-            Text(
-              'Welcome, ${AuthService.userName}',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const Spacer(),
-            if (_isAdmin)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                ),
-                child: Text(
-                  'ADMIN',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.orange,
-                    fontWeight: FontWeight.bold,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Administrator Access',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
                   ),
                 ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            if (_isAdmin) ...[
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    context.go('/sermons');
-                  },
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Manage Sermons'),
-                  style:
-                      ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+                const SizedBox(height: 4),
+                Text(
+                  'Manage sermons and app content',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurface.withOpacity(0.7),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-            ],
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _handleLogout,
-                icon: const Icon(Icons.logout),
-                label: const Text('Logout'),
-              ),
+              ],
             ),
-          ],
-        ),
-      ],
+          ),
+          ElevatedButton(
+            onPressed: () => context.go('/admin/login'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Login'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -724,7 +523,6 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Simple header
           Row(
             children: [
               Icon(
@@ -750,10 +548,7 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ],
           ),
-
           const SizedBox(height: 20),
-
-          // Clean lyrics box
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
@@ -772,10 +567,7 @@ class _DashboardPageState extends State<DashboardPage> {
               textAlign: TextAlign.center,
             ),
           ),
-
           const SizedBox(height: 16),
-
-          // Simple footer
           Row(
             children: [
               Expanded(
@@ -979,13 +771,11 @@ class _DashboardPageState extends State<DashboardPage> {
             borderRadius: BorderRadius.circular(12),
             child: Stack(
               children: [
-                // Background image or gradient fallback
                 Positioned.fill(
                   child: Image.asset(
                     collection.coverImage,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
-                      // Fallback to gradient if image fails to load
                       return Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -1001,7 +791,6 @@ class _DashboardPageState extends State<DashboardPage> {
                     },
                   ),
                 ),
-                // Dark overlay for better text readability
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
@@ -1016,12 +805,9 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                   ),
                 ),
-                // Content
                 InkWell(
                   borderRadius: BorderRadius.circular(12),
-                  onTap: () {
-                    context.go('/collection/${collection.id}');
-                  },
+                  onTap: () => context.go('/collection/${collection.id}'),
                   child: Container(
                     width: double.infinity,
                     height: double.infinity,
@@ -1135,7 +921,6 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       child: Column(
         children: [
-          // Header
           Container(
             padding: const EdgeInsets.all(16.0),
             decoration: BoxDecoration(
@@ -1181,7 +966,6 @@ class _DashboardPageState extends State<DashboardPage> {
               ],
             ),
           ),
-          // List of favorites
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -1246,7 +1030,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
     return Column(
       children: [
-        // First row
         Row(
           children: [
             Expanded(
@@ -1279,10 +1062,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(16),
-                  onTap: () {
-                    // Navigate to favorites
-                    context.go('/favorites');
-                  },
+                  onTap: () => context.go('/favorites'),
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
@@ -1335,10 +1115,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(16),
-                  onTap: () {
-                    // Navigate to search
-                    context.go('/search');
-                  },
+                  onTap: () => context.go('/search'),
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
@@ -1363,7 +1140,6 @@ class _DashboardPageState extends State<DashboardPage> {
           ],
         ),
         const SizedBox(height: 12),
-        // Second row
         Row(
           children: [
             Expanded(
@@ -1396,10 +1172,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(16),
-                  onTap: () {
-                    // Navigate to sermon page
-                    context.go('/sermons');
-                  },
+                  onTap: () => context.go('/sermons'),
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
@@ -1408,7 +1181,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             color: Colors.purple, size: 28),
                         const SizedBox(height: 12),
                         Text(
-                          'Sermon',
+                          'Sermons',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w500,
                             color: colorScheme.onSurface,
@@ -1453,7 +1226,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(16),
                   onTap: () {
-                    // TODO: Navigate to media page (future development)
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Media feature coming soon!'),
