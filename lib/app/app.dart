@@ -11,6 +11,9 @@ import '../presentation/sermons/pages/sermon_page.dart';
 import '../presentation/admin/pages/admin_login_page.dart';
 import '../presentation/admin/pages/sermon_management_page.dart';
 import '../presentation/admin/pages/add_edit_sermon_page.dart';
+import '../presentation/auth/pages/login_page.dart';
+import '../presentation/auth/pages/register_page.dart';
+import '../presentation/auth/pages/profile_page.dart';
 
 class SongLyricsApp extends StatelessWidget {
   final ThemeNotifier themeNotifier;
@@ -48,6 +51,20 @@ class SongLyricsApp extends StatelessWidget {
           builder: (context, state) =>
               FigmaDashboardPage(favoritesNotifier: favoritesNotifier),
         ),
+        // Auth Routes
+        GoRoute(
+          path: '/login',
+          builder: (context, state) => const LoginPage(),
+        ),
+        GoRoute(
+          path: '/register',
+          builder: (context, state) => const RegisterPage(),
+        ),
+        GoRoute(
+          path: '/profile',
+          builder: (context, state) => const ProfilePage(),
+        ),
+        // Song Routes
         GoRoute(
           path: '/collection/:collectionId',
           builder: (context, state) {
@@ -85,6 +102,7 @@ class SongLyricsApp extends StatelessWidget {
           path: '/sermons',
           builder: (context, state) => const SermonPage(),
         ),
+        // Admin Routes
         GoRoute(
           path: '/admin/login',
           builder: (context, state) => const AdminLoginPage(),
@@ -100,10 +118,12 @@ class SongLyricsApp extends StatelessWidget {
         GoRoute(
           path: '/admin/sermons/edit/:sermonId',
           builder: (context, state) {
+            final sermonId = state.pathParameters['sermonId']!;
             final sermonData = state.extra as Map<String, dynamic>?;
             return AddEditSermonPage(sermon: sermonData);
           },
         ),
+        // Shortcuts
         GoRoute(
           path: '/favorites',
           redirect: (context, state) => '/collection/lpmi?favorites=true',
