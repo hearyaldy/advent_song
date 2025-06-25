@@ -63,6 +63,8 @@ class _DashboardPageState extends State<DashboardPage> {
     _isLoggedIn = AuthService.isLoggedIn;
     if (_isLoggedIn) {
       _isAdmin = await AuthService.isAdmin;
+      print('User ID: ${AuthService.currentUser?.uid}');
+      print('Is Admin: $_isAdmin');
     }
   }
 

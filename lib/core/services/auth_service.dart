@@ -17,11 +17,24 @@ class AuthService {
     if (!isLoggedIn) return false;
 
     try {
+      print('Checking admin for UID: ${currentUser!.uid}');
       final snapshot =
           await _database.ref().child('users').child(currentUser!.uid).get();
+      print('Database snapshot exists: ${snapshot.exists}');
+      print('Database snapshot value: ${snapshot.value}');
+
+      if (!snapshot.exists) {
+        print('User not found in database');
+        return false;
+      }
+
       final userData = snapshot.value as Map<dynamic, dynamic>?;
-      return userData?['isAdmin'] ?? false;
+      final isAdminValue = userData?['isAdmin'];
+      print('isAdmin value: $isAdminValue (${isAdminValue.runtimeType})');
+
+      return isAdminValue == true;
     } catch (e) {
+      print('Admin check error: $e');
       return false;
     }
   }
