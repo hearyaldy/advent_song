@@ -2,13 +2,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/services/theme_notifier.dart';
-import '../presentation/dashboard/pages/dashboard_page.dart';
 import '../presentation/song_list/pages/song_list_page.dart';
 import '../presentation/lyrics_viewer/pages/lyrics_page.dart';
 import '../presentation/settings/pages/settings_page.dart';
 import '../presentation/sermons/pages/sermon_page.dart';
 import '../presentation/admin/pages/admin_login_page.dart';
 import '../presentation/admin/pages/sermon_management_page.dart';
+import '../presentation/admin/pages/add_edit_sermon_page.dart';
+import '../presentation/dashboard/pages/figma_dashboard_page.dart';
 
 class SongLyricsApp extends StatelessWidget {
   final ThemeNotifier themeNotifier;
@@ -38,7 +39,7 @@ class SongLyricsApp extends StatelessWidget {
       routes: [
         GoRoute(
           path: '/',
-          builder: (context, state) => const DashboardPage(),
+          builder: (context, state) => const FigmaDashboardPage(),
         ),
         GoRoute(
           path: '/collection/:collectionId',
@@ -60,10 +61,7 @@ class SongLyricsApp extends StatelessWidget {
           builder: (context, state) {
             final collectionId = state.pathParameters['collectionId']!;
             final songId = state.pathParameters['songId']!;
-            return LyricsPage(
-              collectionId: collectionId,
-              songId: songId,
-            );
+            return LyricsPage(collectionId: collectionId, songId: songId);
           },
         ),
         GoRoute(
@@ -82,6 +80,18 @@ class SongLyricsApp extends StatelessWidget {
         GoRoute(
           path: '/admin/sermons',
           builder: (context, state) => const SermonManagementPage(),
+        ),
+        GoRoute(
+          path: '/admin/sermons/add',
+          builder: (context, state) => const AddEditSermonPage(),
+        ),
+        GoRoute(
+          path: '/admin/sermons/edit/:sermonId',
+          builder: (context, state) {
+            final sermonId = state.pathParameters['sermonId']!;
+            final sermonData = state.extra as Map<String, dynamic>?;
+            return AddEditSermonPage(sermon: sermonData);
+          },
         ),
         GoRoute(
           path: '/favorites',
@@ -104,11 +114,7 @@ class SongLyricsApp extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.grey,
-              ),
+              const Icon(Icons.error_outline, size: 64, color: Colors.grey),
               const SizedBox(height: 16),
               const Text(
                 'Page Not Found',

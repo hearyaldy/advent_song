@@ -1,6 +1,7 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'firebase_options.dart';
 import 'app/app.dart';
 import 'core/services/theme_notifier.dart';
@@ -14,13 +15,30 @@ void main() async {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+      print('Firebase initialized successfully');
     } else {
-      Firebase.app(); // Use existing app
+      print('Using existing Firebase app instance');
     }
-    print('Firebase initialized successfully');
+
+    // Enable offline persistence for Realtime Database
+    try {
+      FirebaseDatabase.instance.setPersistenceEnabled(true);
+      print('Firebase offline persistence enabled');
+    } catch (e) {
+      print('Failed to enable offline persistence: $e');
+      // Continue anyway - offline persistence is not critical for app function
+    }
   } on FirebaseException catch (e) {
     if (e.code == 'duplicate-app') {
       print('Firebase already initialized, using existing instance');
+
+      // Try to enable persistence even for existing app
+      try {
+        FirebaseDatabase.instance.setPersistenceEnabled(true);
+        print('Firebase offline persistence enabled');
+      } catch (persistenceError) {
+        print('Failed to enable offline persistence: $persistenceError');
+      }
     } else {
       print('Firebase initialization error: $e');
       runApp(FirebaseErrorApp(error: e.toString()));

@@ -45,8 +45,8 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'YOUR_ANDROID_API_KEY',
-    appId: 'YOUR_ANDROID_APP_ID',
+    apiKey: 'AIzaSyByJavF0pDsU_GdQgjGXYR0iHLTKXBOd9k',
+    appId: '1:426462153394:android:afa4da8ff0fb9695f697ab',
     messagingSenderId: '426462153394',
     projectId: 'lagu-advent',
     databaseURL:
@@ -55,14 +55,14 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'YOUR_IOS_API_KEY',
-    appId: 'YOUR_IOS_APP_ID',
+    apiKey: 'AIzaSyByJavF0pDsU_GdQgjGXYR0iHLTKXBOd9k',
+    appId: '1:426462153394:ios:9ae6ac55570447f6f697ab',
     messagingSenderId: '426462153394',
     projectId: 'lagu-advent',
     databaseURL:
         'https://lagu-advent-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'lagu-advent.firebasestorage.app',
-    iosBundleId: 'com.example.yourapp',
+    iosBundleId: 'com.sak.laguadvent',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(

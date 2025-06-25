@@ -349,11 +349,6 @@ class _SermonPageState extends State<SermonPage> {
                 final allSermons = snapshot.data ?? [];
                 final filteredSermons = _applyFilters(allSermons);
 
-                // Sermon info
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  // Update UI after build is complete
-                });
-
                 return Column(
                   children: [
                     Padding(
@@ -472,8 +467,9 @@ class _SermonPageState extends State<SermonPage> {
                                                 PopupMenuButton<String>(
                                                   onSelected: (value) {
                                                     if (value == 'edit') {
-                                                      _showAddEditDialog(
-                                                          sermon);
+                                                      context.go(
+                                                          '/admin/sermons/edit/${sermon['id']}',
+                                                          extra: sermon);
                                                     } else if (value ==
                                                         'delete') {
                                                       _deleteSermon(
@@ -638,7 +634,7 @@ class _SermonPageState extends State<SermonPage> {
       ),
       floatingActionButton: _isAdmin
           ? FloatingActionButton(
-              onPressed: () => _showAddEditDialog(null),
+              onPressed: () => context.go('/admin/sermons/add'),
               backgroundColor: Colors.purple,
               child: const Icon(Icons.add, color: Colors.white),
             )
@@ -841,153 +837,6 @@ class _SermonPageState extends State<SermonPage> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _showAddEditDialog(Map<String, dynamic>? sermon) {
-    final isEdit = sermon != null;
-    final titleController = TextEditingController(text: sermon?['title'] ?? '');
-    final pastorController =
-        TextEditingController(text: sermon?['pastor'] ?? '');
-    final seriesController =
-        TextEditingController(text: sermon?['series'] ?? '');
-    final descriptionController =
-        TextEditingController(text: sermon?['description'] ?? '');
-    final durationController =
-        TextEditingController(text: sermon?['duration']?.toString() ?? '');
-    final audioUrlController =
-        TextEditingController(text: sermon?['audioUrl'] ?? '');
-    final videoUrlController =
-        TextEditingController(text: sermon?['videoUrl'] ?? '');
-
-    DateTime selectedDate =
-        sermon != null ? sermon['date'] as DateTime : DateTime.now();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isEdit ? 'Edit Sermon' : 'Add New Sermon'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(labelText: 'Title *'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: pastorController,
-                decoration: const InputDecoration(labelText: 'Pastor *'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: seriesController,
-                decoration: const InputDecoration(labelText: 'Series'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(labelText: 'Description'),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: durationController,
-                decoration:
-                    const InputDecoration(labelText: 'Duration (minutes)'),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: audioUrlController,
-                decoration:
-                    const InputDecoration(labelText: 'Audio URL (optional)'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: videoUrlController,
-                decoration:
-                    const InputDecoration(labelText: 'Video URL (optional)'),
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                title: Text(
-                    'Date: ${DateFormat('MMM d, yyyy').format(selectedDate)}'),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: selectedDate,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
-                  );
-                  if (date != null) {
-                    selectedDate = date;
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleController.text.trim().isEmpty ||
-                  pastorController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Title and Pastor are required')),
-                );
-                return;
-              }
-
-              final success = isEdit
-                  ? await SermonService.updateSermon(sermon['id'], {
-                      'title': titleController.text.trim(),
-                      'pastor': pastorController.text.trim(),
-                      'series': seriesController.text.trim(),
-                      'description': descriptionController.text.trim(),
-                      'duration': int.tryParse(durationController.text) ?? 30,
-                      'audioUrl': audioUrlController.text.trim(),
-                      'videoUrl': videoUrlController.text.trim(),
-                      'hasAudio': audioUrlController.text.trim().isNotEmpty,
-                      'hasVideo': videoUrlController.text.trim().isNotEmpty,
-                      'date': selectedDate,
-                    })
-                  : await SermonService.addSermon(
-                      title: titleController.text.trim(),
-                      pastor: pastorController.text.trim(),
-                      date: selectedDate,
-                      series: seriesController.text.trim(),
-                      description: descriptionController.text.trim(),
-                      duration: int.tryParse(durationController.text) ?? 30,
-                      audioUrl: audioUrlController.text.trim(),
-                      videoUrl: videoUrlController.text.trim(),
-                    );
-
-              Navigator.pop(context);
-
-              if (success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content:
-                          Text(isEdit ? 'Sermon updated!' : 'Sermon added!')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Failed to save sermon')),
-                );
-              }
-            },
-            child: Text(isEdit ? 'Update' : 'Add'),
-          ),
-        ],
       ),
     );
   }
