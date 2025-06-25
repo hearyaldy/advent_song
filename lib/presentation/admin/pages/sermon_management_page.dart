@@ -161,13 +161,13 @@ class _SermonManagementPageState extends State<SermonManagementPage> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        const Row(
                           children: [
-                            const Icon(Icons.admin_panel_settings,
+                            Icon(Icons.admin_panel_settings,
                                 color: Colors.white),
-                            const SizedBox(width: 8),
+                            SizedBox(width: 8),
                             Expanded(
-                              child: const Text(
+                              child: Text(
                                 'Sermon Management',
                                 style: TextStyle(
                                   color: Colors.white,
