@@ -157,21 +157,28 @@ class _SermonManagementPageState extends State<SermonManagementPage> {
 
                     const SizedBox(height: 8),
 
-                    // Title and admin badge
-                    Row(
+                    // Title and admin badge - Fixed Row
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.admin_panel_settings,
-                            color: Colors.white),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Sermon Management',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          children: [
+                            const Icon(Icons.admin_panel_settings,
+                                color: Colors.white),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: const Text(
+                                'Sermon Management',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
@@ -294,7 +301,7 @@ class _SermonManagementPageState extends State<SermonManagementPage> {
 
                 return Column(
                   children: [
-                    // Stats row
+                    // Stats row - Fixed
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: Container(
@@ -305,23 +312,52 @@ class _SermonManagementPageState extends State<SermonManagementPage> {
                           border:
                               Border.all(color: Colors.orange.withOpacity(0.3)),
                         ),
-                        child: Row(
+                        child: Column(
                           children: [
-                            const Icon(Icons.church, color: Colors.orange),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Total: ${allSermons.length} sermons',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange,
-                              ),
+                            Row(
+                              children: [
+                                const Icon(Icons.church, color: Colors.orange),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Total: ${allSermons.length} sermons',
+                                    style:
+                                        theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const Spacer(),
-                            Text(
-                              'Showing: ${filteredSermons.length}',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: Colors.orange,
-                              ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Showing: ${filteredSermons.length}',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: Colors.orange,
+                                  ),
+                                ),
+                                if (_selectedFilter != 'All')
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      _selectedFilter,
+                                      style: const TextStyle(
+                                        color: Colors.orange,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ],
                         ),
@@ -570,19 +606,15 @@ class _SermonManagementPageState extends State<SermonManagementPage> {
                       Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                 ),
           ),
-          if (_searchQuery.isEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Tap the + button to add your first sermon',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withOpacity(0.5),
-                  ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+          const SizedBox(height: 8),
+          Text(
+            'Tap the + button to add your first sermon',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                ),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );

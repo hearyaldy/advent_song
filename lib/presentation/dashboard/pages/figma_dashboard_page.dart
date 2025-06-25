@@ -64,7 +64,6 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
   }
 
   Future<void> _loadUserInfo() async {
-    // Try to get user name from auth or preferences
     if (AuthService.isLoggedIn) {
       _userName = AuthService.userName;
     } else {
@@ -268,7 +267,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                                 Text(
                                   '$_greeting, $_userName',
                                   style: const TextStyle(
-                                    fontSize: 17, // 60% smaller than 28
+                                    fontSize: 17,
                                     fontWeight: FontWeight.w700,
                                     color: Colors.white,
                                     letterSpacing: -0.3,
@@ -286,13 +285,22 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                               ],
                             ),
                           ),
-                          // Login and Settings Icons
-                          IconButton(
-                            icon: const Icon(Icons.login,
-                                color: Colors.white, size: 20),
-                            onPressed: () => context.go('/admin/login'),
-                            tooltip: 'Admin Login',
-                          ),
+                          // User Profile/Login and Settings Icons
+                          if (AuthService.isLoggedIn) ...[
+                            IconButton(
+                              icon: const Icon(Icons.person,
+                                  color: Colors.white, size: 20),
+                              onPressed: () => context.go('/profile'),
+                              tooltip: 'Profile',
+                            ),
+                          ] else ...[
+                            IconButton(
+                              icon: const Icon(Icons.login,
+                                  color: Colors.white, size: 20),
+                              onPressed: () => context.go('/login'),
+                              tooltip: 'Login',
+                            ),
+                          ],
                           const SizedBox(width: 8),
                           IconButton(
                             icon: const Icon(Icons.settings,
@@ -540,7 +548,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 1.6, // Increased further to prevent overflow
+        childAspectRatio: 1.6,
       ),
       itemCount: AppConstants.collections.length,
       itemBuilder: (context, index) {
@@ -602,14 +610,13 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                     ),
                     // Content
                     Padding(
-                      padding: const EdgeInsets.all(10), // Reduced further
+                      padding: const EdgeInsets.all(10),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize:
-                            MainAxisSize.min, // Added to prevent overflow
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(6), // Reduced
+                            padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
@@ -620,17 +627,16 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                             child: Icon(
                               _getCollectionIcon(collection.id),
                               color: Colors.white,
-                              size: 18, // Reduced
+                              size: 18,
                             ),
                           ),
                           const Spacer(),
                           Flexible(
-                            // Added to prevent overflow
                             child: Text(
                               collection.displayName,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 13, // Reduced further
+                                fontSize: 13,
                                 fontWeight: FontWeight.bold,
                                 shadows: [
                                   Shadow(
@@ -648,7 +654,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                             '$count songs',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.9),
-                              fontSize: 10, // Reduced
+                              fontSize: 10,
                               fontWeight: FontWeight.w500,
                               shadows: const [
                                 Shadow(
@@ -770,7 +776,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 3.0, // Increased from 2.5 to prevent text cutoff
+        childAspectRatio: 3.0,
       ),
       itemCount: actions.length,
       itemBuilder: (context, index) {
@@ -821,23 +827,22 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(12), // Reduced from 16
+            padding: const EdgeInsets.all(12),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10), // Reduced from 12
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10), // Reduced from 12
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, color: color, size: 20), // Reduced from 24
+                  child: Icon(icon, color: color, size: 20),
                 ),
-                const SizedBox(width: 12), // Reduced from 16
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     label,
                     style: theme.textTheme.titleSmall?.copyWith(
-                      // Changed from titleMedium
                       fontWeight: FontWeight.w600,
                     ),
                     maxLines: 1,

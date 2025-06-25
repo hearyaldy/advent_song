@@ -18,6 +18,7 @@ class _SermonPageState extends State<SermonPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _isAdmin = false;
+  int _selectedNavIndex = 2; // Sermons tab
 
   @override
   void initState() {
@@ -54,7 +55,6 @@ class _SermonPageState extends State<SermonPage> {
   List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> sermons) {
     List<Map<String, dynamic>> filtered = sermons;
 
-    // Apply search filter
     if (_searchQuery.isNotEmpty) {
       filtered = filtered
           .where((sermon) =>
@@ -73,7 +73,6 @@ class _SermonPageState extends State<SermonPage> {
           .toList();
     }
 
-    // Apply category filter
     switch (_selectedFilter) {
       case 'All':
         break;
@@ -103,6 +102,28 @@ class _SermonPageState extends State<SermonPage> {
     });
   }
 
+  void _onBottomNavTapped(int index) {
+    if (index == _selectedNavIndex) return;
+
+    setState(() {
+      _selectedNavIndex = index;
+    });
+
+    switch (index) {
+      case 0:
+        context.go('/');
+        break;
+      case 1:
+        context.go('/collection/lpmi');
+        break;
+      case 2:
+        break; // Current page
+      case 3:
+        context.go('/settings');
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -112,7 +133,7 @@ class _SermonPageState extends State<SermonPage> {
       backgroundColor: colorScheme.surface,
       body: Column(
         children: [
-          // Header with image
+          // Header with image (no back button)
           Stack(
             children: [
               Container(
@@ -164,22 +185,7 @@ class _SermonPageState extends State<SermonPage> {
                   ),
                 ),
               ),
-              // Back button
-              Positioned(
-                top: MediaQuery.of(context).padding.top + 8,
-                left: 8,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => context.go('/'),
-                  ),
-                ),
-              ),
-              // Settings button
+              // Settings button only
               Positioned(
                 top: MediaQuery.of(context).padding.top + 8,
                 right: 8,
@@ -260,7 +266,6 @@ class _SermonPageState extends State<SermonPage> {
                 const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(
               children: [
-                // Search field
                 Expanded(
                   child: TextField(
                     controller: _searchController,
@@ -286,7 +291,6 @@ class _SermonPageState extends State<SermonPage> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Filter button
                 PopupMenuButton<String>(
                   icon: Container(
                     padding: const EdgeInsets.all(12),
@@ -639,6 +643,29 @@ class _SermonPageState extends State<SermonPage> {
               child: const Icon(Icons.add, color: Colors.white),
             )
           : null,
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedNavIndex,
+        onTap: _onBottomNavTapped,
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.library_music),
+            label: 'Songs',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.church),
+            label: 'Sermons',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
+      ),
     );
   }
 
