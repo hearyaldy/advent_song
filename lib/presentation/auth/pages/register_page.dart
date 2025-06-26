@@ -138,10 +138,12 @@ class _RegisterPageState extends State<RegisterPage> {
                   labelText: 'Full Name *',
                   prefixIcon: Icons.person_outline_rounded,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty)
+                    if (value == null || value.trim().isEmpty) {
                       return 'Full name is required';
-                    if (value.trim().length < 2)
+                    }
+                    if (value.trim().length < 2) {
                       return 'Name must be at least 2 characters';
+                    }
                     return null;
                   },
                 ),
@@ -159,10 +161,13 @@ class _RegisterPageState extends State<RegisterPage> {
                   prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty)
+                    if (value == null || value.trim().isEmpty) {
                       return 'Email is required';
+                    }
                     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                        .hasMatch(value)) return 'Please enter a valid email';
+                        .hasMatch(value)) {
+                      return 'Please enter a valid email';
+                    }
                     return null;
                   },
                 ),
@@ -180,10 +185,12 @@ class _RegisterPageState extends State<RegisterPage> {
                         setState(() => _showPassword = !_showPassword),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty)
+                    if (value == null || value.isEmpty) {
                       return 'Password is required';
-                    if (value.length < 6)
+                    }
+                    if (value.length < 6) {
                       return 'Password must be at least 6 characters';
+                    }
                     return null;
                   },
                 ),
@@ -201,10 +208,12 @@ class _RegisterPageState extends State<RegisterPage> {
                         () => _showConfirmPassword = !_showConfirmPassword),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty)
+                    if (value == null || value.isEmpty) {
                       return 'Please confirm your password';
-                    if (value != _passwordController.text)
+                    }
+                    if (value != _passwordController.text) {
                       return 'Passwords do not match';
+                    }
                     return null;
                   },
                   textInputAction: TextInputAction.done,

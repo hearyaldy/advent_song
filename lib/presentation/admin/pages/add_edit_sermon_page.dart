@@ -73,111 +73,113 @@ class _AddEditSermonPageState extends State<AddEditSermonPage> {
     }
   }
 
+  // --- THIS METHOD IS NOW CORRECTED ---
   Future<void> _saveSermon() async {
     if (!_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      final success = _isEdit
-          ? await SermonService.updateSermon(widget.sermon!['id'], {
-              'title': _titleController.text.trim(),
-              'pastor': _pastorController.text.trim(),
-              'series': _seriesController.text.trim(),
-              'description': _descriptionController.text.trim(),
-              'duration': int.tryParse(_durationController.text) ?? 30,
-              'audioUrl': _audioUrlController.text.trim(),
-              'videoUrl': _videoUrlController.text.trim(),
-              'hasAudio': _audioUrlController.text.trim().isNotEmpty,
-              'hasVideo': _videoUrlController.text.trim().isNotEmpty,
-              'date': _selectedDate,
-            })
-          : await SermonService.addSermon(
-              title: _titleController.text.trim(),
-              pastor: _pastorController.text.trim(),
-              date: _selectedDate,
-              series: _seriesController.text.trim(),
-              description: _descriptionController.text.trim(),
-              duration: int.tryParse(_durationController.text) ?? 30,
-              audioUrl: _audioUrlController.text.trim(),
-              videoUrl: _videoUrlController.text.trim(),
-            );
+      // The service call now returns a simple boolean
+      final bool wasSuccessful;
 
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_isEdit ? 'Sermon updated!' : 'Sermon added!'),
-            backgroundColor: Colors.green,
-          ),
+      if (_isEdit) {
+        // The update call takes an ID and a Map, which was correct
+        final data = {
+          'title': _titleController.text.trim(),
+          'pastor': _pastorController.text.trim(),
+          'series': _seriesController.text.trim(),
+          'description': _descriptionController.text.trim(),
+          'duration': int.tryParse(_durationController.text.trim()) ?? 0,
+          'audioUrl': _audioUrlController.text.trim(),
+          'videoUrl': _videoUrlController.text.trim(),
+          'hasAudio': _audioUrlController.text.trim().isNotEmpty,
+          'hasVideo': _videoUrlController.text.trim().isNotEmpty,
+          'date': _selectedDate,
+        };
+        wasSuccessful =
+            await SermonService.updateSermon(widget.sermon!['id'], data);
+      } else {
+        // The add call takes named parameters, not a map. This is now fixed.
+        wasSuccessful = await SermonService.addSermon(
+          title: _titleController.text.trim(),
+          pastor: _pastorController.text.trim(),
+          date: _selectedDate,
+          series: _seriesController.text.trim(),
+          description: _descriptionController.text.trim(),
+          duration: int.tryParse(_durationController.text.trim()) ?? 0,
+          audioUrl: _audioUrlController.text.trim(),
+          videoUrl: _videoUrlController.text.trim(),
         );
-        context.go('/sermons');
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to save sermon'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      }
+
+      if (mounted) {
+        // We now check the boolean directly
+        if (wasSuccessful) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_isEdit
+                  ? 'Sermon updated successfully!'
+                  : 'Sermon added successfully!'),
+              backgroundColor: Colors.green.shade600,
+            ),
+          );
+          context.go('/admin/sermons');
+        } else {
+          _showMessage('Failed to save sermon. Please try again.',
+              isError: true);
+        }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showMessage('An unexpected error occurred: $e', isError: true);
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
 
+  void _showMessage(String message, {required bool isError}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return Scaffold(
-      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: Text(_isEdit ? 'Edit Sermon' : 'Add New Sermon'),
-        backgroundColor: Colors.purple,
-        foregroundColor: Colors.white,
+        title: Text(_isEdit ? 'Edit Sermon' : 'Add Sermon'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/sermons'),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/admin/sermons'),
         ),
         actions: [
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
+          _isLoading
+              ? const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white)),
+                )
+              : Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: FilledButton(
+                    onPressed: _saveSermon,
+                    child: Text(_isEdit ? 'Update' : 'Save'),
+                  ),
                 ),
-              ),
-            )
-          else
-            TextButton(
-              onPressed: _saveSermon,
-              child: Text(
-                _isEdit ? 'UPDATE' : 'SAVE',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
         ],
       ),
       body: Form(
@@ -185,293 +187,142 @@ class _AddEditSermonPageState extends State<AddEditSermonPage> {
         child: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
-            // Header Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          _isEdit ? Icons.edit : Icons.add,
-                          color: Colors.purple,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _isEdit ? 'Edit Sermon Details' : 'Create New Sermon',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _isEdit
-                          ? 'Update the sermon information below'
-                          : 'Fill in the details for the new sermon',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurface.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
+            _buildSectionHeader(
+                'Basic Information', Icons.info_outline_rounded),
             const SizedBox(height: 16),
-
-            // Basic Information
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Basic Information',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.purple,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Sermon Title *',
-                        hintText: 'Enter the sermon title',
-                        prefixIcon: Icon(Icons.title),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Title is required';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _pastorController,
-                      decoration: const InputDecoration(
-                        labelText: 'Pastor Name *',
-                        hintText: 'Enter the pastor\'s name',
-                        prefixIcon: Icon(Icons.person),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Pastor name is required';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _seriesController,
-                      decoration: const InputDecoration(
-                        labelText: 'Series',
-                        hintText: 'Enter sermon series (optional)',
-                        prefixIcon: Icon(Icons.library_books),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            _buildTextFormField(
+              controller: _titleController,
+              labelText: 'Sermon Title *',
+              prefixIcon: Icons.title_rounded,
+              validator: (val) => val == null || val.trim().isEmpty
+                  ? 'Title is required'
+                  : null,
             ),
-
             const SizedBox(height: 16),
-
-            // Date and Duration
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Schedule & Duration',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.purple,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    InkWell(
-                      onTap: _selectDate,
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Sermon Date *',
-                          prefixIcon: Icon(Icons.calendar_today),
-                          suffixIcon: Icon(Icons.arrow_drop_down),
-                        ),
-                        child: Text(
-                          DateFormat('EEEE, MMMM d, yyyy')
-                              .format(_selectedDate),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _durationController,
-                      decoration: const InputDecoration(
-                        labelText: 'Duration (minutes)',
-                        hintText: 'e.g., 45',
-                        prefixIcon: Icon(Icons.timer),
-                        suffixText: 'min',
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value != null && value.isNotEmpty) {
-                          final duration = int.tryParse(value);
-                          if (duration == null || duration <= 0) {
-                            return 'Please enter a valid duration';
-                          }
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                ),
-              ),
+            _buildTextFormField(
+              controller: _pastorController,
+              labelText: 'Pastor Name *',
+              prefixIcon: Icons.person_rounded,
+              validator: (val) => val == null || val.trim().isEmpty
+                  ? 'Pastor name is required'
+                  : null,
             ),
-
             const SizedBox(height: 16),
-
-            // Description
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Description',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.purple,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _descriptionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Sermon Description',
-                        hintText: 'Brief description of the sermon content',
-                        prefixIcon: Icon(Icons.description),
-                        alignLabelWithHint: true,
-                      ),
-                      maxLines: 4,
-                    ),
-                  ],
-                ),
-              ),
+            _buildTextFormField(
+              controller: _seriesController,
+              labelText: 'Sermon Series (Optional)',
+              prefixIcon: Icons.library_books_rounded,
             ),
-
+            const Divider(height: 48),
+            _buildSectionHeader(
+                'Schedule & Details', Icons.calendar_month_rounded),
             const SizedBox(height: 16),
-
-            // Media URLs
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Media Resources',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.purple,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Add audio and video links for the sermon',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _audioUrlController,
-                      decoration: const InputDecoration(
-                        labelText: 'Audio URL',
-                        hintText: 'https://example.com/audio.mp3',
-                        prefixIcon: Icon(Icons.audiotrack),
-                      ),
-                      validator: (value) {
-                        if (value != null && value.isNotEmpty) {
-                          final uri = Uri.tryParse(value);
-                          if (uri == null || !uri.hasAbsolutePath) {
-                            return 'Please enter a valid URL';
-                          }
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _videoUrlController,
-                      decoration: const InputDecoration(
-                        labelText: 'Video URL',
-                        hintText: 'https://example.com/video.mp4',
-                        prefixIcon: Icon(Icons.videocam),
-                      ),
-                      validator: (value) {
-                        if (value != null && value.isNotEmpty) {
-                          final uri = Uri.tryParse(value);
-                          if (uri == null || !uri.hasAbsolutePath) {
-                            return 'Please enter a valid URL';
-                          }
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                ),
-              ),
+            _buildDatePickerField(),
+            const SizedBox(height: 16),
+            _buildTextFormField(
+              controller: _durationController,
+              labelText: 'Duration (in minutes)',
+              prefixIcon: Icons.timer_rounded,
+              keyboardType: TextInputType.number,
             ),
-
+            const Divider(height: 48),
+            _buildSectionHeader('Content', Icons.article_rounded),
+            const SizedBox(height: 16),
+            _buildTextFormField(
+              controller: _descriptionController,
+              labelText: 'Description',
+              maxLines: 5,
+            ),
+            const SizedBox(height: 16),
+            _buildTextFormField(
+              controller: _audioUrlController,
+              labelText: 'Audio URL (Optional)',
+              prefixIcon: Icons.audiotrack_rounded,
+            ),
+            const SizedBox(height: 16),
+            _buildTextFormField(
+              controller: _videoUrlController,
+              labelText: 'Video URL (Optional)',
+              prefixIcon: Icons.videocam_rounded,
+            ),
             const SizedBox(height: 32),
-
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _isLoading ? null : () => context.go('/sermons'),
-                    icon: const Icon(Icons.cancel),
-                    label: const Text('Cancel'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _saveSermon,
-                    icon: _isLoading
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(_isEdit ? Icons.update : Icons.save),
-                    label: Text(_isEdit ? 'Update Sermon' : 'Save Sermon'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ),
-              ],
+            ElevatedButton.icon(
+              onPressed: _isLoading ? null : _saveSermon,
+              icon: _isLoading
+                  ? Container()
+                  : Icon(_isEdit
+                      ? Icons.check_circle_outline_rounded
+                      : Icons.add_circle_outline_rounded),
+              label: Text(_isEdit ? 'Update Sermon' : 'Add Sermon'),
+              style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold)),
             ),
-
             const SizedBox(height: 16),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, color: theme.colorScheme.primary),
+        const SizedBox(width: 12),
+        Text(title,
+            style: theme.textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  Widget _buildTextFormField({
+    required TextEditingController controller,
+    required String labelText,
+    IconData? prefixIcon,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: labelText,
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      validator: validator,
+    );
+  }
+
+  Widget _buildDatePickerField() {
+    return InkWell(
+      onTap: _selectDate,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Sermon Date *',
+          prefixIcon: const Icon(Icons.calendar_today_rounded),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        child: Text(
+          DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate),
+          style: Theme.of(context).textTheme.bodyLarge,
         ),
       ),
     );

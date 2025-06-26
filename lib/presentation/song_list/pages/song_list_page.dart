@@ -32,7 +32,7 @@ class _SongListPageState extends State<SongListPage> {
   String _searchQuery = '';
   String _currentDate = '';
   bool _isLoading = true;
-  int _selectedNavIndex = 1;
+  int _selectedNavIndex = 1; // Songs tab
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -52,28 +52,20 @@ class _SongListPageState extends State<SongListPage> {
     super.dispose();
   }
 
-  // --- NEW CODE ADDED HERE ---
-  // This lifecycle method is called when the widget receives new properties,
-  // like when you navigate from one collection to another.
   @override
   void didUpdateWidget(covariant SongListPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Check if the collectionId has changed.
     if (widget.collectionId != oldWidget.collectionId) {
-      // If it has, we need to reload the data for the new collection.
-      _initializeApp(); // Re-initializing will load the new collection.
+      _initializeApp();
     }
   }
-  // --- END OF NEW CODE ---
 
   Future<void> _initializeApp() async {
-    // Set loading state to true when we start loading a new collection
     setState(() {
       _isLoading = true;
     });
     await _loadCollection();
     _getCurrentDate();
-    // Check if the widget is still mounted before calling setState
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -99,7 +91,6 @@ class _SongListPageState extends State<SongListPage> {
         setState(() {
           _songs = collection.songs;
           _filteredSongs = _songs;
-          // Reset search and filters when a new collection loads
           _searchController.clear();
           _searchQuery = '';
           _selectedFilter = 'All';
@@ -107,11 +98,12 @@ class _SongListPageState extends State<SongListPage> {
       }
 
       if (widget.showFavoritesOnly) {
-        _selectedFilter = 'Favorites';
+        setState(() {
+          _selectedFilter = 'Favorites';
+        });
         _applyCurrentFilter();
       }
     } catch (e) {
-      // Handle error, e.g., show a snackbar
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading collection: $e')),
@@ -122,23 +114,6 @@ class _SongListPageState extends State<SongListPage> {
 
   Future<void> _toggleFavorite(Song song) async {
     await widget.favoritesNotifier.toggleFavorite(song.songNumber);
-
-    // Show feedback
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.favoritesNotifier.isFavorite(song.songNumber)
-              ? 'Added to favorites'
-              : 'Removed from favorites'),
-          duration: const Duration(seconds: 1),
-        ),
-      );
-    }
-
-    // Refresh filter if showing favorites
-    if (_selectedFilter == 'Favorites') {
-      _applyCurrentFilter();
-    }
   }
 
   void _filterSongs(String query) {
@@ -151,10 +126,8 @@ class _SongListPageState extends State<SongListPage> {
   void _applyCurrentFilter() {
     List<Song> tempSongs = List.from(_songs);
 
-    // Apply main filter (All, Favorites, etc.)
     switch (_selectedFilter) {
       case 'All':
-        // No filter needed
         break;
       case 'Favorites':
         tempSongs = tempSongs
@@ -174,7 +147,6 @@ class _SongListPageState extends State<SongListPage> {
         break;
     }
 
-    // Apply search query on top of the main filter
     if (_searchQuery.isNotEmpty) {
       tempSongs = tempSongs
           .where((song) =>
@@ -196,8 +168,8 @@ class _SongListPageState extends State<SongListPage> {
   void _onFilterChanged(String filter) {
     setState(() {
       _selectedFilter = filter;
+      _applyCurrentFilter();
     });
-    _applyCurrentFilter();
   }
 
   @override
@@ -220,13 +192,11 @@ class _SongListPageState extends State<SongListPage> {
       body: AnimatedBuilder(
         animation: widget.favoritesNotifier,
         builder: (context, child) {
-          // Re-apply filter when favorites change
           if (_selectedFilter == 'Favorites') {
             _applyCurrentFilter();
           }
           return Column(
             children: [
-              // Header with collection cover image
               Stack(
                 children: [
                   SizedBox(
@@ -235,7 +205,6 @@ class _SongListPageState extends State<SongListPage> {
                     child: ClipRect(
                       child: Stack(
                         children: [
-                          // Collection-specific cover image
                           Positioned.fill(
                             child: Image.asset(
                               metadata?.coverImage ??
@@ -244,7 +213,6 @@ class _SongListPageState extends State<SongListPage> {
                               height: 120,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
-                                // Fallback to gradient if image fails to load
                                 return Container(
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
@@ -261,7 +229,6 @@ class _SongListPageState extends State<SongListPage> {
                               },
                             ),
                           ),
-                          // Dark overlay for better text readability
                           Positioned.fill(
                             child: Container(
                               decoration: BoxDecoration(
@@ -280,8 +247,6 @@ class _SongListPageState extends State<SongListPage> {
                       ),
                     ),
                   ),
-
-                  // Settings button
                   Positioned(
                     top: MediaQuery.of(context).padding.top + 8,
                     right: 8,
@@ -296,7 +261,6 @@ class _SongListPageState extends State<SongListPage> {
                       ),
                     ),
                   ),
-                  // Title and date
                   Positioned(
                     bottom: 10,
                     left: 20,
@@ -355,8 +319,6 @@ class _SongListPageState extends State<SongListPage> {
                   ),
                 ],
               ),
-
-              // Collection info
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -381,7 +343,7 @@ class _SongListPageState extends State<SongListPage> {
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: (metadata?.colorTheme ?? colorScheme.primary)
-                            .withAlpha(25), // Use withAlpha for consistency
+                            .withAlpha(25),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -395,14 +357,11 @@ class _SongListPageState extends State<SongListPage> {
                   ],
                 ),
               ),
-
-              // Search bar with sort options
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Row(
                   children: [
-                    // Search field
                     Expanded(
                       child: TextField(
                         controller: _searchController,
@@ -431,7 +390,6 @@ class _SongListPageState extends State<SongListPage> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // Sort button
                     PopupMenuButton<String>(
                       icon: Container(
                         padding: const EdgeInsets.all(12),
@@ -460,8 +418,6 @@ class _SongListPageState extends State<SongListPage> {
                   ],
                 ),
               ),
-
-              // Song list
               Expanded(
                 child: _filteredSongs.isEmpty
                     ? _buildEmptyState()
@@ -544,6 +500,7 @@ class _SongListPageState extends State<SongListPage> {
     );
   }
 
+  // --- THESE 3 METHODS HAVE BEEN RESTORED ---
   PopupMenuItem<String> _buildPopupMenuItem(
       String value, IconData icon, String text) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -642,6 +599,7 @@ class _SongListPageState extends State<SongListPage> {
         return metadata.displayName;
     }
   }
+  // --- END OF RESTORED METHODS ---
 
   void _showCollectionMenu() {
     showModalBottomSheet(
@@ -661,7 +619,6 @@ class _SongListPageState extends State<SongListPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Drag handle
               Center(
                 child: Container(
                   width: 40,
@@ -674,8 +631,6 @@ class _SongListPageState extends State<SongListPage> {
                   ),
                 ),
               ),
-
-              // Header
               Row(
                 children: [
                   Icon(
@@ -706,8 +661,6 @@ class _SongListPageState extends State<SongListPage> {
                     ),
               ),
               const SizedBox(height: 16),
-
-              // Collection options
               Flexible(
                 child: ListView.builder(
                   controller: scrollController,
@@ -794,131 +747,43 @@ class _SongListPageState extends State<SongListPage> {
     );
   }
 
-  Widget _buildBottomNavigationBar() {
+  BottomNavigationBar _buildBottomNavigationBar() {
     return BottomNavigationBar(
       currentIndex: _selectedNavIndex,
-      onTap: _onBottomNavTapped,
+      onTap: (index) {
+        if (index == _selectedNavIndex) return;
+        setState(() => _selectedNavIndex = index);
+        switch (index) {
+          case 0:
+            context.go('/');
+            break;
+          case 1:
+            break;
+          case 2:
+            context.go('/sermons');
+            break;
+          case 3:
+            context.go('/settings');
+            break;
+        }
+      },
       type: BottomNavigationBarType.fixed,
       items: const [
         BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard),
+          icon: Icon(Icons.dashboard_rounded),
           label: 'Dashboard',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.library_music),
+          icon: Icon(Icons.music_note_rounded),
           label: 'Songs',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.settings),
-          label: 'Settings',
+          icon: Icon(Icons.church_rounded),
+          label: 'Sermons',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.info_outline),
-          label: 'About',
-        ),
-      ],
-    );
-  }
-
-  void _onBottomNavTapped(int index) {
-    if (index == _selectedNavIndex) {
-      return;
-    }
-
-    setState(() {
-      _selectedNavIndex = index;
-    });
-
-    switch (index) {
-      case 0:
-        context.go('/');
-        break;
-      case 1:
-        // Already on the songs page, do nothing.
-        break;
-      case 2:
-        context.go('/settings');
-        break;
-      case 3:
-        _showAboutDialog();
-        // Reset index so the 'About' tab isn't permanently selected
-        setState(() {
-          _selectedNavIndex = 1;
-        });
-        break;
-    }
-  }
-
-  void _showAboutDialog() {
-    showAboutDialog(
-      context: context,
-      applicationName: AppConstants.appName,
-      applicationVersion: '1.0.0', // Consider fetching this dynamically
-      applicationIcon: Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Theme.of(context).colorScheme.primary,
-              Theme.of(context).colorScheme.secondary,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Icon(
-          Icons.music_note,
-          size: 32,
-          color: Colors.white,
-        ),
-      ),
-      children: [
-        const SizedBox(height: 16),
-        const Text(
-            'A beautiful collection of spiritual songs for worship and praise.'),
-        const SizedBox(height: 16),
-        Text(
-          'Features:',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        const SizedBox(height: 8),
-        const Text('• Multiple song collections (LPMI, SRD, Iban, Pandak)'),
-        const Text('• Advanced search and filtering'),
-        const Text('• Favorites management'),
-        const Text('• Customizable text display settings'),
-        const Text('• Share and copy song lyrics'),
-        const Text('• Dark mode and color themes'),
-        const Text('• Verse of the day feature'),
-        const SizedBox(height: 16),
-        Text(
-          'Collections:',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        const SizedBox(height: 8),
-        ...AppConstants.collections.values.map(
-          (collection) => Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(
-              children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: collection.colorTheme,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text('${collection.displayName} - ${collection.description}'),
-              ],
-            ),
-          ),
+          icon: Icon(Icons.settings_rounded),
+          label: 'Settings',
         ),
       ],
     );

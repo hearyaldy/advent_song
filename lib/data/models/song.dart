@@ -47,9 +47,9 @@ class Song extends Equatable {
   }) {
     return Song(
       collectionId: collectionId ?? this.collectionId,
-      songNumber: this.songNumber,
-      songTitle: this.songTitle,
-      verses: this.verses,
+      songNumber: songNumber,
+      songTitle: songTitle,
+      verses: verses,
     );
   }
 

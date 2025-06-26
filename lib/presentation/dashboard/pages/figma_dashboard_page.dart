@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-import '../../../data/models/song_collection.dart'; // Assuming path
+import '../../../data/models/song_collection.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/json_loader_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/favorites_notifier.dart';
-import '../../../data/models/song.dart'; // Assuming path
+import '../../../data/models/song.dart';
 
 class FigmaDashboardPage extends StatefulWidget {
   final FavoritesNotifier favoritesNotifier;
@@ -22,7 +22,6 @@ class FigmaDashboardPage extends StatefulWidget {
 
 class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     with SingleTickerProviderStateMixin {
-  // All your existing state variables and data-loading logic remain unchanged
   Map<String, dynamic>? _verseOfTheDay;
   List<Map<String, dynamic>> _recentFavorites = [];
   final Map<String, int> _collectionCounts = {};
@@ -88,7 +87,6 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     } else {
       _greeting = 'Good Evening';
     }
-
     _currentDate = DateFormat('EEEE, MMMM d').format(now);
   }
 
@@ -204,7 +202,6 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
 
   Widget _buildSliverAppBar() {
     final theme = Theme.of(context);
-
     return SliverAppBar(
       expandedHeight: 220,
       floating: false,
@@ -364,13 +361,8 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     );
   }
 
-  // --- THIS IS THE NEW, UPDATED QUICK ACCESS WIDGET ---
-  // lib/presentation/dashboard/pages/figma_dashboard_page.dart
-
   Widget _buildQuickAccessCarousel() {
     final theme = Theme.of(context);
-
-    // Define the actions with their unique colors
     final actions = [
       {
         'icon': Icons.favorite_rounded,
@@ -399,25 +391,23 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     ];
 
     return SizedBox(
-      height: 95, // Height for the carousel
+      height: 95,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: actions.length,
         separatorBuilder: (context, index) => const SizedBox(width: 12),
-        // This ensures the carousel starts with some padding on the left
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        clipBehavior: Clip.none, // Allows shadows to display properly
+        padding: const EdgeInsets.symmetric(horizontal: 1),
+        clipBehavior: Clip.none,
         itemBuilder: (context, index) {
           final action = actions[index];
           final color = action['color'] as Color;
 
-          // The Card with the "Icon over Text" layout
           return AspectRatio(
-            aspectRatio: 1, // Makes the cards square
+            aspectRatio: 1,
             child: Card(
-              elevation: 4, // Give it a bit of shadow to lift off the page
+              elevation: 4,
               shadowColor: color.withOpacity(0.3),
-              color: color, // Use the unique background color
+              color: color,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -429,7 +419,6 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                   children: [
                     Icon(
                       action['icon'] as IconData,
-                      // Icon color should contrast with the background
                       color: Colors.white,
                       size: 32,
                     ),
@@ -438,7 +427,6 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                       action['label'] as String,
                       style: theme.textTheme.labelLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        // Text color should also be white for readability
                         color: Colors.white,
                       ),
                     ),
@@ -484,6 +472,22 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                           ],
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.4),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          _getCollectionIcon(collection.id),
+                          color: Colors.white,
+                          size: 20,
                         ),
                       ),
                     ),
@@ -542,5 +546,20 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
         );
       }).toList(),
     );
+  }
+
+  IconData _getCollectionIcon(String collectionId) {
+    switch (collectionId) {
+      case 'lpmi':
+        return Icons.book_rounded;
+      case 'srd':
+        return Icons.auto_stories_rounded;
+      case 'lagu_iban':
+        return Icons.language_rounded;
+      case 'pandak':
+        return Icons.celebration_rounded;
+      default:
+        return Icons.library_music_rounded;
+    }
   }
 }
