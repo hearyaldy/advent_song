@@ -1,6 +1,7 @@
 // lib/presentation/favorites/pages/favorites_page.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/services/favorites_notifier.dart';
 import '../../../core/services/json_loader_service.dart';
 import '../../../data/models/song.dart';
@@ -16,11 +17,11 @@ class FavoritesPage extends StatefulWidget {
 
 class _FavoritesPageState extends State<FavoritesPage> {
   late Future<List<Song>> _favoriteSongsFuture;
+  int _selectedNavIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    // Use the notifier to rebuild when favorites change
     widget.favoritesNotifier.addListener(_loadFavorites);
     _loadFavorites();
   }
@@ -42,73 +43,224 @@ class _FavoritesPageState extends State<FavoritesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Favorite Songs'),
-      ),
       body: FutureBuilder<List<Song>>(
         future: _favoriteSongsFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(
+                child: Text('Error loading favorites: ${snapshot.error}'));
           }
 
           final favoriteSongs = snapshot.data ?? [];
 
-          if (favoriteSongs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.favorite_border,
-                    size: 80,
-                    color: Colors.grey.shade400,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No Favorites Yet',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Tap the heart icon on any song to add it here.',
-                    style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: favoriteSongs.length,
-            itemBuilder: (context, index) {
-              final song = favoriteSongs[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: ListTile(
-                  title: Text(song.songTitle),
-                  // We need to know the collection name. This highlights the need
-                  // to add `collectionId` to your Song model in the future.
-                  // For now, we can leave it blank or show the number.
-                  subtitle: Text('Song No. ${song.songNumber}'),
-                  trailing: const Icon(Icons.favorite, color: Colors.redAccent),
-                  onTap: () {
-                    // This navigation will fail until we add collectionId to the Song model.
-                    // A task for our next step!
-                    // context.go('/lyrics/${song.collectionId}/${song.songNumber}');
-                  },
-                ),
-              );
-            },
+          return NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              // This method has been updated to include a header image
+              _buildSliverAppBar(context, favoriteSongs.length),
+            ],
+            body: favoriteSongs.isEmpty
+                ? _buildEmptyState()
+                : _buildFavoritesList(favoriteSongs),
           );
         },
       ),
+      bottomNavigationBar: _buildBottomNavBar(context),
+    );
+  }
+
+  // --- WIDGET BUILDER METHODS ---
+
+  // --- UI REFRESH: This SliverAppBar now has a header image ---
+  Widget _buildSliverAppBar(BuildContext context, int count) {
+    final theme = Theme.of(context);
+    return SliverAppBar(
+      pinned: true,
+      expandedHeight: 120,
+      backgroundColor: theme.colorScheme.surface,
+      surfaceTintColor: theme.colorScheme.surface,
+      elevation: 1,
+      flexibleSpace: FlexibleSpaceBar(
+        titlePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        centerTitle: false,
+        title: Text(
+          'Favorite Songs',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            shadows: [
+              const Shadow(
+                  color: Colors.black54, blurRadius: 4, offset: Offset(0, 1))
+            ],
+          ),
+        ),
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/header_image.png',
+              fit: BoxFit.cover,
+              color: Colors.redAccent.withOpacity(0.3),
+              colorBlendMode: BlendMode.multiply,
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.black.withOpacity(0.4), Colors.transparent],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 16.0),
+          child: Center(
+            child: Chip(
+              label: Text('$count Songs'),
+              backgroundColor: theme.colorScheme.primaryContainer,
+              labelStyle:
+                  TextStyle(color: theme.colorScheme.onPrimaryContainer),
+              side: BorderSide.none,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFavoritesList(List<Song> favoriteSongs) {
+    favoriteSongs.sort((a, b) =>
+        int.tryParse(a.songNumber)
+            ?.compareTo(int.tryParse(b.songNumber) ?? 0) ??
+        0);
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      itemCount: favoriteSongs.length,
+      itemBuilder: (context, index) {
+        final song = favoriteSongs[index];
+        return _buildFavoriteSongCard(song);
+      },
+    );
+  }
+
+  Widget _buildFavoriteSongCard(Song song) {
+    final theme = Theme.of(context);
+    final collectionMeta = AppConstants.collections[song.collectionId];
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12.0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor:
+              (collectionMeta?.colorTheme ?? theme.primaryColor).withAlpha(25),
+          child: Text(
+            song.songNumber,
+            style: TextStyle(
+              color: collectionMeta?.colorTheme ?? theme.primaryColor,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        title: Text(song.songTitle,
+            style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(
+          collectionMeta?.displayName ?? 'Unknown Collection',
+          style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+        ),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: () {
+          if (song.collectionId != null) {
+            context.go('/lyrics/${song.collectionId}/${song.songNumber}');
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Could not find collection for this song.')),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.favorite_border_rounded,
+              size: 80,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Favorites Yet',
+              style: Theme.of(context)
+                  .textTheme
+                  .headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Tap the heart icon on any song to add it to this list.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyLarge
+                  ?.copyWith(color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  BottomNavigationBar _buildBottomNavBar(BuildContext context) {
+    return BottomNavigationBar(
+      currentIndex: _selectedNavIndex,
+      onTap: (index) {
+        setState(() => _selectedNavIndex = index);
+        switch (index) {
+          case 0:
+            context.go('/');
+            break;
+          case 1:
+            context.go('/collection/lpmi');
+            break;
+          case 2:
+            context.go('/sermons');
+            break;
+          case 3:
+            context.go('/settings');
+            break;
+        }
+      },
+      type: BottomNavigationBarType.fixed,
+      items: const [
+        BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.music_note_rounded), label: 'Songs'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.church_rounded), label: 'Sermons'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.settings_rounded), label: 'Settings'),
+      ],
     );
   }
 }

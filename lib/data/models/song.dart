@@ -1,11 +1,18 @@
 import 'package:equatable/equatable.dart';
 
 class Song extends Equatable {
+  // --- 1. NEW FIELD ADDED ---
+  // This will hold the ID of the collection the song belongs to.
+  // It's nullable ('?') because it's not in the original JSON file.
+  final String? collectionId;
+
   final String songNumber;
   final String songTitle;
   final List<Verse> verses;
 
   const Song({
+    // --- 2. CONSTRUCTOR UPDATED ---
+    this.collectionId,
     required this.songNumber,
     required this.songTitle,
     required this.verses,
@@ -13,6 +20,7 @@ class Song extends Equatable {
 
   factory Song.fromJson(Map<String, dynamic> json) {
     return Song(
+      // The collectionId is not added here because it doesn't exist in the JSON.
       songNumber: json['song_number'] as String,
       songTitle: json['song_title'] as String,
       verses: (json['verses'] as List<dynamic>)
@@ -23,16 +31,35 @@ class Song extends Equatable {
 
   Map<String, dynamic> toJson() {
     return {
+      // --- 5. toJson UPDATED (Good Practice) ---
+      'collectionId': collectionId,
       'song_number': songNumber,
       'song_title': songTitle,
       'verses': verses.map((verse) => verse.toJson()).toList(),
     };
   }
 
+  // --- 3. NEW HELPER METHOD ADDED ---
+  // This allows us to create a copy of a song with new values.
+  // We will use this in the JsonLoaderService to add the collectionId.
+  Song copyWith({
+    String? collectionId,
+  }) {
+    return Song(
+      collectionId: collectionId ?? this.collectionId,
+      songNumber: this.songNumber,
+      songTitle: this.songTitle,
+      verses: this.verses,
+    );
+  }
+
   @override
-  List<Object?> get props => [songNumber, songTitle, verses];
+  // --- 4. PROPS UPDATED for Equatable ---
+  // Add collectionId to the props list for correct object comparison.
+  List<Object?> get props => [collectionId, songNumber, songTitle, verses];
 }
 
+// The Verse class remains unchanged.
 class Verse extends Equatable {
   final String verseNumber;
   final String lyrics;

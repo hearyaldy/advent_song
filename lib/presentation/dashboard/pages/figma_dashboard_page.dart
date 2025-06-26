@@ -22,7 +22,7 @@ class FigmaDashboardPage extends StatefulWidget {
 
 class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     with SingleTickerProviderStateMixin {
-  // --- All your existing state variables and data-loading logic remain unchanged ---
+  // All your existing state variables and data-loading logic remain unchanged
   Map<String, dynamic>? _verseOfTheDay;
   List<Map<String, dynamic>> _recentFavorites = [];
   final Map<String, int> _collectionCounts = {};
@@ -109,24 +109,18 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
         widget.favoritesNotifier.favorites.take(3).toList();
     if (favoriteSongNumbers.isEmpty) return;
 
-    List<Map<String, dynamic>> allSongs = [];
-    for (final entry in AppConstants.collections.entries) {
-      try {
-        final songs =
-            await JsonLoaderService.loadSongsFromCollection(entry.key);
-        for (var song in songs) {
-          allSongs.add({
-            'song_number': song.songNumber,
-            'song_title': song.songTitle,
-            'collection': AppConstants.collections[entry.key]!.displayName,
-            'collection_id': entry.key,
-          });
-        }
-      } catch (e) {}
-    }
-    _recentFavorites = allSongs
-        .where((song) => favoriteSongNumbers.contains(song['song_number']))
-        .toList();
+    final foundSongs =
+        await JsonLoaderService.findSongsByNumbers(favoriteSongNumbers);
+
+    _recentFavorites = foundSongs.map((song) {
+      final collectionInfo = AppConstants.collections[song.collectionId];
+      return {
+        'song_number': song.songNumber,
+        'song_title': song.songTitle,
+        'collection': collectionInfo?.displayName ?? 'Unknown',
+        'collection_id': song.collectionId,
+      };
+    }).toList();
   }
 
   Future<void> _loadVerseOfTheDay() async {
@@ -174,7 +168,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
         opacity: _fadeAnimation,
         child: CustomScrollView(
           slivers: [
-            _buildSliverAppBar(), // This will use the new updated method
+            _buildSliverAppBar(),
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
               sliver: SliverList(
@@ -192,7 +186,10 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                   _buildCollectionsCarousel(),
                   const SizedBox(height: 32),
                   if (_recentFavorites.isNotEmpty) ...[
-                    _buildSectionHeader('Your Recent Favorites'),
+                    _buildSectionHeader(
+                      'Recent Favorites',
+                      onViewAll: () => context.go('/favorites'),
+                    ),
                     const SizedBox(height: 16),
                     _buildRecentFavoritesList(),
                   ]
@@ -205,18 +202,16 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     );
   }
 
-  // --- THIS IS THE NEW, UPDATED HEADER WIDGET ---
   Widget _buildSliverAppBar() {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return SliverAppBar(
       expandedHeight: 220,
       floating: false,
       pinned: true,
-      backgroundColor: colorScheme.surface,
+      backgroundColor: theme.colorScheme.surface,
       elevation: 1,
-      surfaceTintColor: colorScheme.surface,
+      surfaceTintColor: theme.colorScheme.surface,
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           fit: StackFit.expand,
@@ -304,14 +299,24 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
       ),
     );
   }
-  // --- END OF NEW HEADER WIDGET ---
 
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
+  Widget _buildSectionHeader(String title, {VoidCallback? onViewAll}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        if (onViewAll != null)
+          TextButton(
+            onPressed: onViewAll,
+            child: const Text('View All'),
           ),
+      ],
     );
   }
 
@@ -359,45 +364,83 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     );
   }
 
+  // --- THIS IS THE NEW, UPDATED QUICK ACCESS WIDGET ---
+  // lib/presentation/dashboard/pages/figma_dashboard_page.dart
+
   Widget _buildQuickAccessCarousel() {
+    final theme = Theme.of(context);
+
+    // Define the actions with their unique colors
     final actions = [
-      {'icon': Icons.favorite, 'label': 'Favorites', 'route': '/favorites'},
       {
-        'icon': Icons.library_music,
-        'label': 'Songs',
-        'route': '/collection/lpmi'
+        'icon': Icons.favorite_rounded,
+        'label': 'Favorites',
+        'route': '/favorites',
+        'color': Colors.red.shade400
       },
-      {'icon': Icons.church, 'label': 'Sermons', 'route': '/sermons'},
-      {'icon': Icons.settings, 'label': 'Settings', 'route': '/settings'},
+      {
+        'icon': Icons.music_note_rounded,
+        'label': 'Songs',
+        'route': '/collection/lpmi',
+        'color': Colors.blue.shade400
+      },
+      {
+        'icon': Icons.church_rounded,
+        'label': 'Sermons',
+        'route': '/sermons',
+        'color': Colors.purple.shade400
+      },
+      {
+        'icon': Icons.settings_rounded,
+        'label': 'Settings',
+        'route': '/settings',
+        'color': Colors.orange.shade400
+      },
     ];
 
     return SizedBox(
-      height: 90,
+      height: 95, // Height for the carousel
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: actions.length,
         separatorBuilder: (context, index) => const SizedBox(width: 12),
+        // This ensures the carousel starts with some padding on the left
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        clipBehavior: Clip.none, // Allows shadows to display properly
         itemBuilder: (context, index) {
           final action = actions[index];
+          final color = action['color'] as Color;
+
+          // The Card with the "Icon over Text" layout
           return AspectRatio(
-            aspectRatio: 1,
+            aspectRatio: 1, // Makes the cards square
             child: Card(
-              elevation: 0,
+              elevation: 4, // Give it a bit of shadow to lift off the page
+              shadowColor: color.withOpacity(0.3),
+              color: color, // Use the unique background color
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
                 onTap: () => context.go(action['route'] as String),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(action['icon'] as IconData,
-                        color: Theme.of(context).colorScheme.primary),
+                    Icon(
+                      action['icon'] as IconData,
+                      // Icon color should contrast with the background
+                      color: Colors.white,
+                      size: 32,
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       action['label'] as String,
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        // Text color should also be white for readability
+                        color: Colors.white,
+                      ),
                     ),
                   ],
                 ),
