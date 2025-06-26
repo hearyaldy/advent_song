@@ -13,6 +13,8 @@ import '../presentation/admin/pages/add_edit_sermon_page.dart';
 import '../presentation/auth/pages/login_page.dart';
 import '../presentation/auth/pages/register_page.dart';
 import '../presentation/auth/pages/profile_page.dart';
+// --- NEW IMPORT ADDED HERE ---
+import '../presentation/favorites/pages/favorites_page.dart';
 
 class SongLyricsApp extends StatelessWidget {
   final ThemeNotifier themeNotifier;
@@ -118,11 +120,16 @@ class SongLyricsApp extends StatelessWidget {
             return AddEditSermonPage(sermon: sermonData);
           },
         ),
-        // Shortcuts
+
+        // --- THIS /FAVORITES ROUTE IS NOW UPDATED ---
         GoRoute(
           path: '/favorites',
-          redirect: (context, state) => '/collection/lpmi?favorites=true',
+          builder: (context, state) => FavoritesPage(
+            favoritesNotifier: favoritesNotifier,
+          ),
         ),
+
+        // The /search shortcut remains the same
         GoRoute(
           path: '/search',
           redirect: (context, state) => '/collection/lpmi?search=true',

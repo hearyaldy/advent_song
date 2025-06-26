@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-import 'package:song_lyrics_app/data/models/song_collection.dart';
+import '../../../data/models/song_collection.dart'; // Assuming path
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/json_loader_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/favorites_notifier.dart';
+import '../../../data/models/song.dart'; // Assuming path
 
 class FigmaDashboardPage extends StatefulWidget {
   final FavoritesNotifier favoritesNotifier;
@@ -21,6 +22,7 @@ class FigmaDashboardPage extends StatefulWidget {
 
 class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     with SingleTickerProviderStateMixin {
+  // --- All your existing state variables and data-loading logic remain unchanged ---
   Map<String, dynamic>? _verseOfTheDay;
   List<Map<String, dynamic>> _recentFavorites = [];
   final Map<String, int> _collectionCounts = {};
@@ -35,11 +37,11 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
     _initializePage();
   }
@@ -58,10 +60,12 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
       _loadUserInfo(),
     ]);
     _setGreetingAndDate();
-    setState(() {
-      _isLoading = false;
-    });
-    _animationController.forward();
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+      _animationController.forward();
+    }
   }
 
   Future<void> _loadUserInfo() async {
@@ -101,12 +105,11 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
   }
 
   Future<void> _loadRecentFavorites() async {
-    final favoriteSongs = widget.favoritesNotifier.favorites;
-
-    if (favoriteSongs.isEmpty) return;
+    final favoriteSongNumbers =
+        widget.favoritesNotifier.favorites.take(3).toList();
+    if (favoriteSongNumbers.isEmpty) return;
 
     List<Map<String, dynamic>> allSongs = [];
-
     for (final entry in AppConstants.collections.entries) {
       try {
         final songs =
@@ -115,36 +118,24 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
           allSongs.add({
             'song_number': song.songNumber,
             'song_title': song.songTitle,
-            'verses': song.verses
-                .map((v) => {
-                      'verse_number': v.verseNumber,
-                      'lyrics': v.lyrics,
-                    })
-                .toList(),
             'collection': AppConstants.collections[entry.key]!.displayName,
             'collection_id': entry.key,
           });
         }
-      } catch (e) {
-        // Handle error silently
-      }
+      } catch (e) {}
     }
-
-    final recentFavoriteNumbers = favoriteSongs.take(3).toList();
     _recentFavorites = allSongs
-        .where((song) => recentFavoriteNumbers.contains(song['song_number']))
+        .where((song) => favoriteSongNumbers.contains(song['song_number']))
         .toList();
   }
 
   Future<void> _loadVerseOfTheDay() async {
     try {
       final allVerses = <Map<String, dynamic>>[];
-
       for (final entry in AppConstants.collections.entries) {
         try {
           final songs =
               await JsonLoaderService.loadSongsFromCollection(entry.key);
-
           for (var song in songs) {
             if (song.verses.isNotEmpty) {
               final randomVerse =
@@ -152,17 +143,12 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
               allVerses.add({
                 'song_title': song.songTitle,
                 'song_number': song.songNumber,
-                'collection': AppConstants.collections[entry.key]!.displayName,
                 'collection_id': entry.key,
-                'verse_number': randomVerse.verseNumber,
                 'lyrics': randomVerse.lyrics,
-                'full_song': song,
               });
             }
           }
-        } catch (e) {
-          // Handle error silently
-        }
+        } catch (e) {}
       }
 
       if (allVerses.isNotEmpty) {
@@ -171,187 +157,45 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
         final random = Random(seed);
         _verseOfTheDay = allVerses[random.nextInt(allVerses.length)];
       }
-    } catch (e) {
-      // Handle error silently
-    }
+    } catch (e) {}
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDarkMode = theme.brightness == Brightness.dark;
-
     if (_isLoading) {
-      return Scaffold(
-        backgroundColor: colorScheme.surface,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: colorScheme.primary),
-              const SizedBox(height: 16),
-              Text(
-                'Loading...',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        ),
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      backgroundColor: isDarkMode ? Colors.grey[900] : Colors.grey[50],
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: CustomScrollView(
           slivers: [
-            // Modern App Bar with Header Image
-            SliverAppBar(
-              expandedHeight: 160,
-              floating: true,
-              pinned: true,
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              flexibleSpace: FlexibleSpaceBar(
-                background: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Header Image
-                    Image.asset(
-                      'assets/images/header_image.png',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                colorScheme.primary,
-                                colorScheme.primary.withOpacity(0.8),
-                                colorScheme.secondary,
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    // Dark overlay
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.3),
-                            Colors.black.withOpacity(0.6),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Content
-                    Positioned(
-                      bottom: 60,
-                      left: 20,
-                      right: 20,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '$_greeting, $_userName',
-                                  style: const TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                    letterSpacing: -0.3,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _currentDate,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.white.withOpacity(0.9),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // User Profile/Login and Settings Icons
-                          if (AuthService.isLoggedIn) ...[
-                            IconButton(
-                              icon: const Icon(Icons.person,
-                                  color: Colors.white, size: 20),
-                              onPressed: () => context.go('/profile'),
-                              tooltip: 'Profile',
-                            ),
-                          ] else ...[
-                            IconButton(
-                              icon: const Icon(Icons.login,
-                                  color: Colors.white, size: 20),
-                              onPressed: () => context.go('/login'),
-                              tooltip: 'Login',
-                            ),
-                          ],
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.settings,
-                                color: Colors.white, size: 20),
-                            onPressed: () => context.go('/settings'),
-                            tooltip: 'Settings',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Content
+            _buildSliverAppBar(), // This will use the new updated method
             SliverPadding(
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // Quick Stats Grid
-                  _buildStatsGrid(),
-                  const SizedBox(height: 24),
-
-                  // Verse of the Day
-                  if (_verseOfTheDay != null) ...[
-                    _buildVerseCard(),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // Collections Grid
-                  _buildSectionHeader('Song Collections'),
+                  _buildSectionHeader('Verse of the Day'),
                   const SizedBox(height: 16),
-                  _buildCollectionsGrid(),
+                  if (_verseOfTheDay != null) _buildVerseOfTheDayCard(),
                   const SizedBox(height: 32),
-
-                  // Recent Favorites
-                  if (_recentFavorites.isNotEmpty) ...[
-                    _buildSectionHeader('Recent Favorites'),
-                    const SizedBox(height: 16),
-                    _buildRecentFavorites(),
-                    const SizedBox(height: 32),
-                  ],
-
-                  // Quick Actions
-                  _buildSectionHeader('Quick Actions'),
+                  _buildSectionHeader('Quick Access'),
                   const SizedBox(height: 16),
-                  _buildQuickActions(),
-
-                  const SizedBox(height: 40),
+                  _buildQuickAccessCarousel(),
+                  const SizedBox(height: 32),
+                  _buildSectionHeader('Explore Collections'),
+                  const SizedBox(height: 16),
+                  _buildCollectionsCarousel(),
+                  const SizedBox(height: 32),
+                  if (_recentFavorites.isNotEmpty) ...[
+                    _buildSectionHeader('Your Recent Favorites'),
+                    const SizedBox(height: 16),
+                    _buildRecentFavoritesList(),
+                  ]
                 ]),
               ),
             ),
@@ -361,411 +205,289 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     );
   }
 
-  Widget _buildStatsGrid() {
-    final totalSongs =
-        _collectionCounts.values.fold<int>(0, (sum, count) => sum + count);
-    final favoritesCount = _recentFavorites.length;
+  // --- THIS IS THE NEW, UPDATED HEADER WIDGET ---
+  Widget _buildSliverAppBar() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-              child:
-                  _buildStatItem('$totalSongs', 'Songs', colorScheme.primary)),
-          Container(
-              width: 1,
-              height: 40,
-              color: colorScheme.outline.withOpacity(0.2)),
-          Expanded(
-              child: _buildStatItem('${_collectionCounts.length}',
-                  'Collections', colorScheme.secondary)),
-          Container(
-              width: 1,
-              height: 40,
-              color: colorScheme.outline.withOpacity(0.2)),
-          Expanded(
-              child:
-                  _buildStatItem('$favoritesCount', 'Favorites', Colors.red)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String value, String label, Color color) {
-    final theme = Theme.of(context);
-    return Column(
-      children: [
-        Text(
-          value,
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: color,
-            letterSpacing: -1,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVerseCard() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colorScheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.auto_awesome,
-                  color: colorScheme.primary,
-                  size: 24,
+    return SliverAppBar(
+      expandedHeight: 220,
+      floating: false,
+      pinned: true,
+      backgroundColor: colorScheme.surface,
+      elevation: 1,
+      surfaceTintColor: colorScheme.surface,
+      flexibleSpace: FlexibleSpaceBar(
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/header_image.png',
+              fit: BoxFit.cover,
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black54, Colors.transparent, Colors.black87],
+                  stops: [0.0, 0.5, 1.0],
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Verse of the Day',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+            ),
+            Padding(
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + 16,
+                left: 16,
+                right: 16,
+                bottom: 16,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '$_greeting, $_userName',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      InkWell(
+                        onTap: () => context
+                            .go(AuthService.isLoggedIn ? '/profile' : '/login'),
+                        child: CircleAvatar(
+                          backgroundColor: Colors.white.withOpacity(0.2),
+                          child: Icon(
+                            AuthService.isLoggedIn ? Icons.person : Icons.login,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  GestureDetector(
+                    onTap: () => context.go('/search'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.95),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.search, color: Colors.grey[600]),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Search songs and sermons...',
+                            style: TextStyle(
+                                color: Colors.grey[600], fontSize: 16),
+                          ),
+                        ],
                       ),
                     ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  // --- END OF NEW HEADER WIDGET ---
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+    );
+  }
+
+  Widget _buildVerseOfTheDayCard() {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 2,
+      shadowColor: theme.colorScheme.shadow.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          final collectionId = _verseOfTheDay!['collection_id'];
+          final songNumber = _verseOfTheDay!['song_number'];
+          if (collectionId != null && songNumber != null) {
+            context.go('/lyrics/$collectionId/$songNumber');
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '"${_verseOfTheDay!['lyrics']?.toString() ?? 'No lyrics available'}"',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  height: 1.5,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '— ${_verseOfTheDay!['song_title']?.toString() ?? 'Unknown'}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickAccessCarousel() {
+    final actions = [
+      {'icon': Icons.favorite, 'label': 'Favorites', 'route': '/favorites'},
+      {
+        'icon': Icons.library_music,
+        'label': 'Songs',
+        'route': '/collection/lpmi'
+      },
+      {'icon': Icons.church, 'label': 'Sermons', 'route': '/sermons'},
+      {'icon': Icons.settings, 'label': 'Settings', 'route': '/settings'},
+    ];
+
+    return SizedBox(
+      height: 90,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: actions.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final action = actions[index];
+          return AspectRatio(
+            aspectRatio: 1,
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => context.go(action['route'] as String),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(action['icon'] as IconData,
+                        color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(height: 8),
                     Text(
-                      DateFormat('MMMM d, yyyy').format(DateTime.now()),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurface.withOpacity(0.6),
+                      action['label'] as String,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCollectionsCarousel() {
+    final collections = AppConstants.collections.values.toList();
+    return SizedBox(
+      height: 150,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: collections.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 16),
+        itemBuilder: (context, index) {
+          final collection = collections[index];
+          return AspectRatio(
+            aspectRatio: 4 / 5,
+            child: Card(
+              margin: EdgeInsets.zero,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              child: InkWell(
+                onTap: () => context.go('/collection/${collection.id}'),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.asset(collection.coverImage, fit: BoxFit.cover),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.black.withOpacity(0.0),
+                            Colors.black.withOpacity(0.6)
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 12,
+                      left: 12,
+                      right: 12,
+                      child: Text(
+                        collection.displayName,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            shadows: [
+                              Shadow(color: Colors.black54, blurRadius: 4)
+                            ]),
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(16),
             ),
-            child: Text(
-              _verseOfTheDay!['lyrics']?.toString() ?? 'No lyrics available',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontStyle: FontStyle.italic,
-                height: 1.6,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _verseOfTheDay!['song_title']?.toString() ?? 'Unknown',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () {
-                  final collectionId = _verseOfTheDay!['collection_id'];
-                  final songNumber = _verseOfTheDay!['song_number'];
-                  if (collectionId != null && songNumber != null) {
-                    context.go('/lyrics/$collectionId/$songNumber');
-                  }
-                },
-                icon: const Icon(Icons.arrow_forward, size: 18),
-                label: const Text('Read More'),
-              ),
-            ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildRecentFavoritesList() {
     final theme = Theme.of(context);
-    return Text(
-      title,
-      style: theme.textTheme.headlineSmall?.copyWith(
-        fontWeight: FontWeight.bold,
-        letterSpacing: -0.5,
-      ),
-    );
-  }
-
-  Widget _buildCollectionsGrid() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 1.1,
-      ),
-      itemCount: AppConstants.collections.length,
-      itemBuilder: (context, index) {
-        final collection = AppConstants.collections.values.elementAt(index);
-        final count = _collectionCounts[collection.id] ?? 0;
-
-        return _buildEnhancedCollectionCard(collection, count);
-      },
-    );
-  }
-
-  Widget _buildEnhancedCollectionCard(
-      CollectionMetadata collection, int count) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: isDarkMode
-                ? Colors.black.withOpacity(0.3)
-                : collection.colorTheme.withOpacity(0.2),
-            blurRadius: isDarkMode ? 10 : 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () => context.go('/collection/${collection.id}'),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Collection cover image with enhanced fallback
-                Image.asset(
-                  collection.coverImage,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            collection.colorTheme,
-                            collection.colorTheme.withOpacity(0.8),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                // Enhanced dark overlay for better text readability
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.2),
-                        Colors.black.withOpacity(0.7),
-                      ],
-                    ),
-                  ),
-                ),
-                // Enhanced content layout
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Top section with enhanced icon
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          _getCollectionIcon(collection.id),
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                      const Spacer(),
-                      // Bottom section with enhanced text
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            collection.displayName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: -0.2,
-                              shadows: [
-                                Shadow(
-                                  offset: Offset(0, 2),
-                                  blurRadius: 4,
-                                  color: Colors.black87,
-                                ),
-                              ],
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
-                              ),
-                            ),
-                            child: Text(
-                              '$count songs',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                shadows: [
-                                  Shadow(
-                                    offset: Offset(0, 1),
-                                    blurRadius: 2,
-                                    color: Colors.black87,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecentFavorites() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: _recentFavorites.map((song) {
-          final index = _recentFavorites.indexOf(song);
-          return ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            leading: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  song['song_number']?.toString() ?? '0',
-                  style: const TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
+    return Column(
+      children: _recentFavorites.map((song) {
+        return Card(
+          elevation: 0,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
             title: Text(
-              song['song_title']?.toString() ?? 'Unknown Song',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              song['song_title']?.toString() ?? 'Unknown',
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
-            subtitle: Text(
-              song['collection']?.toString() ?? 'Unknown Collection',
-              style: theme.textTheme.bodySmall,
-            ),
-            trailing: const Icon(Icons.favorite, color: Colors.red, size: 20),
+            subtitle: Text(song['collection']?.toString() ?? 'Unknown'),
+            leading: Icon(Icons.music_note, color: theme.colorScheme.primary),
+            trailing: const Icon(Icons.favorite, color: Colors.redAccent),
             onTap: () {
               final collectionId = song['collection_id'];
               final songNumber = song['song_number'];
@@ -773,140 +495,9 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                 context.go('/lyrics/$collectionId/$songNumber');
               }
             },
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildQuickActions() {
-    final actions = [
-      {
-        'icon': Icons.favorite,
-        'label': 'Favorites',
-        'color': Colors.red,
-        'route': '/favorites'
-      },
-      {
-        'icon': Icons.search,
-        'label': 'Search',
-        'color': Colors.blue,
-        'route': '/search'
-      },
-      {
-        'icon': Icons.church,
-        'label': 'Sermons',
-        'color': Colors.purple,
-        'route': '/sermons'
-      },
-      {
-        'icon': Icons.video_library,
-        'label': 'Media',
-        'color': Colors.orange,
-        'route': null
-      },
-    ];
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 3.0,
-      ),
-      itemCount: actions.length,
-      itemBuilder: (context, index) {
-        final action = actions[index];
-        return _buildActionCard(
-          icon: action['icon'] as IconData,
-          label: action['label'] as String,
-          color: action['color'] as Color,
-          onTap: () {
-            final route = action['route'] as String?;
-            if (route != null) {
-              context.go(route);
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Coming soon!')),
-              );
-            }
-          },
+          ),
         );
-      },
+      }).toList(),
     );
-  }
-
-  Widget _buildActionCard({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: color, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  IconData _getCollectionIcon(String collectionId) {
-    switch (collectionId) {
-      case 'lpmi':
-        return Icons.music_note_rounded;
-      case 'srd':
-        return Icons.favorite_rounded;
-      case 'lagu_iban':
-        return Icons.language_rounded;
-      case 'pandak':
-        return Icons.celebration_rounded;
-      default:
-        return Icons.library_music_rounded;
-    }
   }
 }

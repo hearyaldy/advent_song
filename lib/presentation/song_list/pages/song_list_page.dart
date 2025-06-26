@@ -52,37 +52,71 @@ class _SongListPageState extends State<SongListPage> {
     super.dispose();
   }
 
+  // --- NEW CODE ADDED HERE ---
+  // This lifecycle method is called when the widget receives new properties,
+  // like when you navigate from one collection to another.
+  @override
+  void didUpdateWidget(covariant SongListPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Check if the collectionId has changed.
+    if (widget.collectionId != oldWidget.collectionId) {
+      // If it has, we need to reload the data for the new collection.
+      _initializeApp(); // Re-initializing will load the new collection.
+    }
+  }
+  // --- END OF NEW CODE ---
+
   Future<void> _initializeApp() async {
+    // Set loading state to true when we start loading a new collection
+    setState(() {
+      _isLoading = true;
+    });
     await _loadCollection();
     _getCurrentDate();
-    setState(() {
-      _isLoading = false;
-    });
+    // Check if the widget is still mounted before calling setState
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   void _getCurrentDate() {
     final now = DateTime.now();
     final formattedDate = DateFormat('EEEE | MMMM d, yyyy').format(now);
-    setState(() {
-      _currentDate = formattedDate;
-    });
+    if (mounted) {
+      setState(() {
+        _currentDate = formattedDate;
+      });
+    }
   }
 
   Future<void> _loadCollection() async {
     try {
       final collection =
           await JsonLoaderService.loadCollection(widget.collectionId);
-      setState(() {
-        _songs = collection.songs;
-        _filteredSongs = _songs;
-      });
+      if (mounted) {
+        setState(() {
+          _songs = collection.songs;
+          _filteredSongs = _songs;
+          // Reset search and filters when a new collection loads
+          _searchController.clear();
+          _searchQuery = '';
+          _selectedFilter = 'All';
+        });
+      }
 
       if (widget.showFavoritesOnly) {
         _selectedFilter = 'Favorites';
         _applyCurrentFilter();
       }
     } catch (e) {
-      // Handle error
+      // Handle error, e.g., show a snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading collection: $e')),
+        );
+      }
     }
   }
 
@@ -110,45 +144,52 @@ class _SongListPageState extends State<SongListPage> {
   void _filterSongs(String query) {
     setState(() {
       _searchQuery = query;
-      if (query.isEmpty) {
-        _applyCurrentFilter();
-      } else {
-        _filteredSongs = _songs
-            .where((song) =>
-                song.songTitle.toLowerCase().contains(query.toLowerCase()) ||
-                song.songNumber.contains(query) ||
-                song.verses.any((verse) =>
-                    verse.lyrics.toLowerCase().contains(query.toLowerCase())))
-            .toList();
-      }
+      _applyCurrentFilter();
     });
   }
 
   void _applyCurrentFilter() {
+    List<Song> tempSongs = List.from(_songs);
+
+    // Apply main filter (All, Favorites, etc.)
+    switch (_selectedFilter) {
+      case 'All':
+        // No filter needed
+        break;
+      case 'Favorites':
+        tempSongs = tempSongs
+            .where(
+                (song) => widget.favoritesNotifier.isFavorite(song.songNumber))
+            .toList();
+        break;
+      case 'Alphabet':
+        tempSongs.sort((a, b) =>
+            a.songTitle.toLowerCase().compareTo(b.songTitle.toLowerCase()));
+        break;
+      case 'Number':
+        tempSongs.sort((a, b) =>
+            int.tryParse(a.songNumber)
+                ?.compareTo(int.tryParse(b.songNumber) ?? 0) ??
+            0);
+        break;
+    }
+
+    // Apply search query on top of the main filter
+    if (_searchQuery.isNotEmpty) {
+      tempSongs = tempSongs
+          .where((song) =>
+              song.songTitle
+                  .toLowerCase()
+                  .contains(_searchQuery.toLowerCase()) ||
+              song.songNumber.contains(_searchQuery) ||
+              song.verses.any((verse) => verse.lyrics
+                  .toLowerCase()
+                  .contains(_searchQuery.toLowerCase())))
+          .toList();
+    }
+
     setState(() {
-      switch (_selectedFilter) {
-        case 'All':
-          _filteredSongs = _songs;
-          break;
-        case 'Favorites':
-          _filteredSongs = _songs
-              .where((song) =>
-                  widget.favoritesNotifier.isFavorite(song.songNumber))
-              .toList();
-          break;
-        case 'Alphabet':
-          _filteredSongs = List.from(_songs)
-            ..sort((a, b) =>
-                a.songTitle.toLowerCase().compareTo(b.songTitle.toLowerCase()));
-          break;
-        case 'Number':
-          _filteredSongs = List.from(_songs)
-            ..sort((a, b) =>
-                int.tryParse(a.songNumber)
-                    ?.compareTo(int.tryParse(b.songNumber) ?? 0) ??
-                0);
-          break;
-      }
+      _filteredSongs = tempSongs;
     });
   }
 
@@ -179,6 +220,10 @@ class _SongListPageState extends State<SongListPage> {
       body: AnimatedBuilder(
         animation: widget.favoritesNotifier,
         builder: (context, child) {
+          // Re-apply filter when favorites change
+          if (_selectedFilter == 'Favorites') {
+            _applyCurrentFilter();
+          }
           return Column(
             children: [
               // Header with collection cover image
@@ -336,7 +381,7 @@ class _SongListPageState extends State<SongListPage> {
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: (metadata?.colorTheme ?? colorScheme.primary)
-                            .withValues(alpha: 0.1),
+                            .withAlpha(25), // Use withAlpha for consistency
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -376,7 +421,10 @@ class _SongListPageState extends State<SongListPage> {
                               : null,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12.0),
+                            borderSide: BorderSide.none,
                           ),
+                          filled: true,
+                          fillColor: theme.colorScheme.surfaceContainerHighest,
                           contentPadding:
                               const EdgeInsets.symmetric(vertical: 12.0),
                         ),
@@ -388,13 +436,8 @@ class _SongListPageState extends State<SongListPage> {
                       icon: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: (metadata?.colorTheme ?? colorScheme.primary)
-                              .withValues(alpha: 0.1),
+                          color: theme.colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: (metadata?.colorTheme ?? colorScheme.primary)
-                                .withValues(alpha: 0.3),
-                          ),
                         ),
                         child: Icon(
                           Icons.sort,
@@ -423,7 +466,7 @@ class _SongListPageState extends State<SongListPage> {
                 child: _filteredSongs.isEmpty
                     ? _buildEmptyState()
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
                         itemCount: _filteredSongs.length,
                         itemBuilder: (context, index) {
                           final song = _filteredSongs[index];
@@ -432,14 +475,24 @@ class _SongListPageState extends State<SongListPage> {
 
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8.0),
+                            elevation: 1,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color:
+                                    theme.colorScheme.outline.withOpacity(0.2),
+                              ),
+                            ),
                             child: ListTile(
                               leading: CircleAvatar(
-                                backgroundColor:
-                                    metadata?.colorTheme ?? colorScheme.primary,
+                                backgroundColor: (metadata?.colorTheme ??
+                                        colorScheme.primary)
+                                    .withAlpha(30),
                                 child: Text(
                                   song.songNumber,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: metadata?.colorTheme ??
+                                        colorScheme.primary,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
                                   ),
@@ -460,7 +513,7 @@ class _SongListPageState extends State<SongListPage> {
                                   isFavorite
                                       ? Icons.favorite
                                       : Icons.favorite_border,
-                                  color: isFavorite ? Colors.red : null,
+                                  color: isFavorite ? Colors.redAccent : null,
                                 ),
                                 onPressed: () => _toggleFavorite(song),
                               ),
@@ -529,45 +582,45 @@ class _SongListPageState extends State<SongListPage> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            _selectedFilter == 'Favorites'
-                ? Icons.favorite_border
-                : Icons.search_off,
-            size: 64,
-            color:
-                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _selectedFilter == 'Favorites'
-                ? 'No favorite songs yet'
-                : _searchQuery.isNotEmpty
-                    ? 'No songs found for "$_searchQuery"'
-                    : 'No songs available',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.7),
-                ),
-          ),
-          if (_selectedFilter == 'Favorites') ...[
-            const SizedBox(height: 8),
-            Text(
-              'Tap the heart icon on songs to add them to favorites',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.5),
-                  ),
-              textAlign: TextAlign.center,
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _selectedFilter == 'Favorites'
+                  ? Icons.favorite_border
+                  : Icons.search_off,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(70),
             ),
+            const SizedBox(height: 16),
+            Text(
+              _selectedFilter == 'Favorites'
+                  ? 'No favorite songs yet'
+                  : _searchQuery.isNotEmpty
+                      ? 'No songs found for "$_searchQuery"'
+                      : 'No songs available',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color:
+                        Theme.of(context).colorScheme.onSurface.withAlpha(180),
+                  ),
+            ),
+            if (_selectedFilter == 'Favorites') ...[
+              const SizedBox(height: 8),
+              Text(
+                'Tap the heart icon on songs to add them to favorites',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withAlpha(130),
+                    ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -615,10 +668,8 @@ class _SongListPageState extends State<SongListPage> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.3),
+                    color:
+                        Theme.of(context).colorScheme.onSurface.withAlpha(70),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -651,7 +702,7 @@ class _SongListPageState extends State<SongListPage> {
                       color: Theme.of(context)
                           .colorScheme
                           .onSurface
-                          .withValues(alpha: 0.7),
+                          .withAlpha(180),
                     ),
               ),
               const SizedBox(height: 16),
@@ -671,13 +722,12 @@ class _SongListPageState extends State<SongListPage> {
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? collection.colorTheme.withValues(alpha: 0.1)
+                            ? collection.colorTheme.withAlpha(25)
                             : null,
                         borderRadius: BorderRadius.circular(12),
                         border: isSelected
                             ? Border.all(
-                                color: collection.colorTheme
-                                    .withValues(alpha: 0.3))
+                                color: collection.colorTheme.withAlpha(80))
                             : null,
                       ),
                       child: ListTile(
@@ -715,11 +765,11 @@ class _SongListPageState extends State<SongListPage> {
                           collection.description,
                           style: TextStyle(
                             color: isSelected
-                                ? collection.colorTheme.withValues(alpha: 0.7)
+                                ? collection.colorTheme.withAlpha(180)
                                 : Theme.of(context)
                                     .colorScheme
                                     .onSurface
-                                    .withValues(alpha: 0.6),
+                                    .withAlpha(150),
                           ),
                         ),
                         trailing: isSelected
@@ -784,12 +834,14 @@ class _SongListPageState extends State<SongListPage> {
         context.go('/');
         break;
       case 1:
+        // Already on the songs page, do nothing.
         break;
       case 2:
         context.go('/settings');
         break;
       case 3:
         _showAboutDialog();
+        // Reset index so the 'About' tab isn't permanently selected
         setState(() {
           _selectedNavIndex = 1;
         });
@@ -801,7 +853,7 @@ class _SongListPageState extends State<SongListPage> {
     showAboutDialog(
       context: context,
       applicationName: AppConstants.appName,
-      applicationVersion: '1.0.0',
+      applicationVersion: '1.0.0', // Consider fetching this dynamically
       applicationIcon: Container(
         width: 64,
         height: 64,
