@@ -1,4 +1,4 @@
-// lib/presentation/lyrics_viewer/pages/lyrics_page.dart - COMPLETE UPDATED VERSION
+// lib/presentation/lyrics_viewer/pages/lyrics_page.dart - UPDATED
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -55,16 +55,16 @@ class _LyricsPageState extends State<LyricsPage> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-
-    setState(() {
-      _fontSize = prefs.getDouble('fontSize') ?? AppConstants.defaultFontSize;
-      _fontFamily = prefs.getString('fontFamily') ?? 'Roboto';
-      _textAlign = TextAlign.values[prefs.getInt('textAlign') ?? 0];
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _fontSize = prefs.getDouble('fontSize') ?? AppConstants.defaultFontSize;
+        _fontFamily = prefs.getString('fontFamily') ?? 'Roboto';
+        _textAlign = TextAlign.values[prefs.getInt('textAlign') ?? 0];
+        _isLoading = false;
+      });
+    }
   }
 
-  // UPDATED: Use collection-aware favorite methods
   Future<void> _toggleFavorite() async {
     await widget.favoritesNotifier
         .toggleFavoriteFromCollection(widget.collectionId, widget.songId);
@@ -143,19 +143,23 @@ $lyrics''';
   }
 
   void _increaseFontSize() {
-    setState(() {
-      if (_fontSize < AppConstants.maxFontSize) {
-        _fontSize += 2;
-      }
-    });
+    if (mounted) {
+      setState(() {
+        if (_fontSize < AppConstants.maxFontSize) {
+          _fontSize += 2;
+        }
+      });
+    }
   }
 
   void _decreaseFontSize() {
-    setState(() {
-      if (_fontSize > AppConstants.minFontSize) {
-        _fontSize -= 2;
-      }
-    });
+    if (mounted) {
+      setState(() {
+        if (_fontSize > AppConstants.minFontSize) {
+          _fontSize -= 2;
+        }
+      });
+    }
   }
 
   @override
@@ -203,7 +207,6 @@ $lyrics''';
               return CustomScrollView(
                 controller: _scrollController,
                 slivers: [
-                  // App bar with collection cover image
                   SliverAppBar(
                     expandedHeight: 200,
                     pinned: true,
@@ -219,29 +222,24 @@ $lyrics''';
                       background: Stack(
                         fit: StackFit.expand,
                         children: [
-                          // Collection-specific cover image
                           Image.asset(
                             metadata?.coverImage ??
                                 'assets/images/header_image.png',
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              // Fallback to gradient if image fails to load
-                              return Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      metadata?.colorTheme ??
-                                          colorScheme.primary,
-                                      colorScheme.secondary,
-                                    ],
-                                  ),
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    metadata?.colorTheme ?? colorScheme.primary,
+                                    colorScheme.secondary,
+                                  ],
                                 ),
-                              );
-                            },
+                              ),
+                            ),
                           ),
-                          // Dark overlay for better text readability
                           Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
@@ -254,7 +252,6 @@ $lyrics''';
                               ),
                             ),
                           ),
-                          // Song information
                           Positioned(
                             bottom: 16,
                             left: 16,
@@ -264,9 +261,7 @@ $lyrics''';
                               children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
+                                      horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: Colors.black.withOpacity(0.4),
                                     borderRadius: BorderRadius.circular(4),
@@ -289,10 +284,9 @@ $lyrics''';
                                     fontWeight: FontWeight.bold,
                                     shadows: [
                                       Shadow(
-                                        offset: Offset(0, 1),
-                                        blurRadius: 3,
-                                        color: Colors.black54,
-                                      ),
+                                          offset: Offset(0, 1),
+                                          blurRadius: 3,
+                                          color: Colors.black54),
                                     ],
                                   ),
                                   maxLines: 2,
@@ -306,9 +300,9 @@ $lyrics''';
                     ),
                     actions: [
                       IconButton(
-                        icon: Icon(
-                          isFavorite ? Icons.favorite : Icons.favorite_border,
-                        ),
+                        icon: Icon(isFavorite
+                            ? Icons.favorite
+                            : Icons.favorite_border),
                         onPressed: _toggleFavorite,
                         tooltip: isFavorite
                             ? 'Remove from favorites'
@@ -381,8 +375,6 @@ $lyrics''';
                       ),
                     ],
                   ),
-
-                  // Font Size Indicator
                   SliverToBoxAdapter(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -392,21 +384,15 @@ $lyrics''';
                         children: [
                           const Icon(Icons.format_size, size: 16),
                           const SizedBox(width: 8),
-                          Text(
-                            'Font Size: ${_fontSize.toInt()}',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
+                          Text('Font Size: ${_fontSize.toInt()}',
+                              style: Theme.of(context).textTheme.bodySmall),
                         ],
                       ),
                     ),
                   ),
-
-                  // Song verses
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 32.0,
-                      vertical: 16.0,
-                    ),
+                        horizontal: 32.0, vertical: 16.0),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
@@ -419,7 +405,6 @@ $lyrics''';
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Verse number/title
                                 if (song.verses.length > 1)
                                   Text(
                                     verse.verseNumber,
@@ -438,7 +423,6 @@ $lyrics''';
                                   ),
                                 if (song.verses.length > 1)
                                   const SizedBox(height: 12),
-                                // Verse lyrics
                                 SelectableText(
                                   verse.lyrics.replaceAll('\\n', '\n'),
                                   style: TextStyle(
@@ -499,9 +483,9 @@ $lyrics''';
                       Expanded(
                         child: FilledButton.icon(
                           onPressed: _toggleFavorite,
-                          icon: Icon(
-                            isFavorite ? Icons.favorite : Icons.favorite_border,
-                          ),
+                          icon: Icon(isFavorite
+                              ? Icons.favorite
+                              : Icons.favorite_border),
                           label: Text(
                               isFavorite ? 'Favorited' : 'Add to Favorites'),
                           style: FilledButton.styleFrom(

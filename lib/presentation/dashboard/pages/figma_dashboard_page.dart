@@ -1,4 +1,4 @@
-// lib/presentation/dashboard/pages/figma_dashboard_page.dart - COMPLETE UPDATED VERSION
+// lib/presentation/dashboard/pages/figma_dashboard_page.dart - UPDATED
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -115,7 +115,6 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     }
   }
 
-  // UPDATED: Use new collection-aware favorite methods
   Future<void> _loadRecentFavorites() async {
     final recentFavoritesWithCollection =
         widget.favoritesNotifier.getRecentFavoritesWithCollection();
@@ -131,7 +130,6 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
 
     final List<Map<String, dynamic>> foundFavorites = [];
 
-    // Load each favorite with its collection context
     for (final favoriteInfo in recentFavoritesWithCollection) {
       final collectionId = favoriteInfo['collectionId']!;
       final songNumber = favoriteInfo['songNumber']!;
@@ -200,9 +198,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -229,10 +225,8 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                   _buildCollectionsCarousel(),
                   const SizedBox(height: 32),
                   if (_recentFavorites.isNotEmpty) ...[
-                    _buildSectionHeader(
-                      'Recent Favorites',
-                      onViewAll: () => context.go('/favorites'),
-                    ),
+                    _buildSectionHeader('Recent Favorites',
+                        onViewAll: () => context.go('/favorites')),
                     const SizedBox(height: 16),
                     _buildRecentFavoritesList(),
                   ]
@@ -261,6 +255,18 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
             Image.asset(
               'assets/images/header_image.png',
               fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      theme.colorScheme.primary,
+                      theme.colorScheme.secondary
+                    ],
+                  ),
+                ),
+              ),
             ),
             const DecoratedBox(
               decoration: BoxDecoration(
@@ -371,15 +377,13 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(context)
+              .textTheme
+              .headlineSmall
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
         if (onViewAll != null)
-          TextButton(
-            onPressed: onViewAll,
-            child: const Text('View All'),
-          ),
+          TextButton(onPressed: onViewAll, child: const Text('View All')),
       ],
     );
   }
@@ -476,19 +480,15 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
               shadowColor: color.withOpacity(0.3),
               color: color,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+                  borderRadius: BorderRadius.circular(16)),
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
                 onTap: () => context.go(action['route'] as String),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      action['icon'] as IconData,
-                      color: Colors.white,
-                      size: 32,
-                    ),
+                    Icon(action['icon'] as IconData,
+                        color: Colors.white, size: 32),
                     const SizedBox(height: 8),
                     Text(
                       action['label'] as String,
@@ -530,7 +530,22 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Image.asset(collection.coverImage, fit: BoxFit.cover),
+                    Image.asset(
+                      collection.coverImage,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              collection.colorTheme.withOpacity(0.8),
+                              collection.colorTheme
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                     Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -552,11 +567,8 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                           color: Colors.black.withOpacity(0.4),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Icon(
-                          _getCollectionIcon(collection.id),
-                          color: Colors.white,
-                          size: 20,
-                        ),
+                        child: Icon(_getCollectionIcon(collection.id),
+                            color: Colors.white, size: 20),
                       ),
                     ),
                     Positioned(
@@ -566,12 +578,13 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                       child: Text(
                         collection.displayName,
                         style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            shadows: [
-                              Shadow(color: Colors.black54, blurRadius: 4)
-                            ]),
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          shadows: [
+                            Shadow(color: Colors.black54, blurRadius: 4)
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -599,6 +612,8 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
               song['song_title']?.toString() ?? 'Unknown',
               style: theme.textTheme.titleSmall
                   ?.copyWith(fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(song['collection']?.toString() ?? 'Unknown'),
             leading: Icon(Icons.music_note, color: theme.colorScheme.primary),

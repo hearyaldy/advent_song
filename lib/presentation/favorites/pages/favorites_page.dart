@@ -1,4 +1,4 @@
-// lib/presentation/favorites/pages/favorites_page.dart - FIXED VERSION
+// lib/presentation/favorites/pages/favorites_page.dart - UPDATED
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
@@ -33,18 +33,18 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 
   void _loadFavorites() {
-    setState(() {
-      _favoriteSongsFuture = _loadFavoriteSongs();
-    });
+    if (mounted) {
+      setState(() {
+        _favoriteSongsFuture = _loadFavoriteSongs();
+      });
+    }
   }
 
-  // FIXED: Use new collection-aware method
   Future<List<Song>> _loadFavoriteSongs() async {
     final favoritesByCollection =
         widget.favoritesNotifier.getFavoritesByCollection();
     final List<Song> allFavoriteSongs = [];
 
-    // Load songs from each collection separately
     for (final entry in favoritesByCollection.entries) {
       final collectionId = entry.key;
       final songNumbers = entry.value;
@@ -62,7 +62,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
       }
     }
 
-    // Sort by collection and song number
     allFavoriteSongs.sort((a, b) {
       final collectionCompare =
           (a.collectionId ?? '').compareTo(b.collectionId ?? '');
@@ -138,6 +137,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
               fit: BoxFit.cover,
               color: Colors.redAccent.withOpacity(0.3),
               colorBlendMode: BlendMode.multiply,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: Colors.redAccent.withOpacity(0.8),
+              ),
             ),
             Container(
               decoration: BoxDecoration(
@@ -203,7 +205,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
           ),
         ),
         title: Text(song.songTitle,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+            style: const TextStyle(fontWeight: FontWeight.w600),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis),
         subtitle: Text(
           collectionMeta?.displayName ?? 'Unknown Collection',
           style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
@@ -255,7 +259,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
     return BottomNavigationBar(
       currentIndex: _selectedNavIndex,
       onTap: (index) {
-        setState(() => _selectedNavIndex = index);
+        if (mounted) {
+          setState(() => _selectedNavIndex = index);
+        }
         switch (index) {
           case 0:
             context.go('/');

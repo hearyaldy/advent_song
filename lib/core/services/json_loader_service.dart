@@ -1,12 +1,12 @@
-// lib/core/services/json_loader_service.dart
+// lib/core/services/json_loader_service.dart - UPDATED
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import '../../data/models/song.dart';
 import '../../data/models/song_collection.dart';
 import '../constants/app_constants.dart';
 
 class JsonLoaderService {
-  // --- THIS IS THE UPDATED METHOD ---
   static Future<List<Song>> loadSongsFromCollection(String collectionId) async {
     try {
       final metadata = AppConstants.collections[collectionId];
@@ -20,15 +20,14 @@ class JsonLoaderService {
 
       final List<dynamic> jsonData = json.decode(jsonString);
 
-      // This now correctly adds the collectionId to each song as it's parsed.
       return jsonData.map((json) {
         final songJson = json as Map<String, dynamic>;
-        // Inject the collectionId into the JSON before creating the Song object.
-        songJson['collection_id'] = collectionId;
+        songJson['collection_id'] = collectionId; // Inject collection ID
         return Song.fromJson(songJson);
       }).toList();
     } catch (e) {
-      throw Exception('Failed to load songs: $e');
+      debugPrint('Failed to load collection $collectionId: $e');
+      return []; // Return empty list instead of throwing
     }
   }
 
@@ -63,13 +62,13 @@ class JsonLoaderService {
     }
   }
 
+  // UPDATED: Better error handling for migration
   static Future<List<Song>> findSongsByNumbers(List<String> songNumbers) async {
     final List<Song> foundSongs = [];
     final Set<String> numbersToFind = songNumbers.toSet();
 
     for (final collectionId in AppConstants.collections.keys) {
       if (collectionId == 'lpmi') continue;
-
       if (numbersToFind.isEmpty) break;
 
       try {
@@ -82,9 +81,38 @@ class JsonLoaderService {
           }
         }
       } catch (e) {
-        print('Could not search collection $collectionId: $e');
+        debugPrint('Could not search collection $collectionId: $e');
+        // Continue with other collections instead of failing completely
       }
     }
+
+    if (foundSongs.isEmpty && songNumbers.isNotEmpty) {
+      debugPrint('Warning: No songs found for numbers: $songNumbers');
+    }
+
     return foundSongs;
+  }
+
+  // NEW: Helper method for migration to find song in specific collections
+  static Future<Map<String, String>> findSongCollections(
+      List<String> songNumbers) async {
+    final Map<String, String> songToCollection = {};
+
+    for (final collectionId in AppConstants.collections.keys) {
+      if (collectionId == 'lpmi') continue;
+
+      try {
+        final songs = await loadSongsFromCollection(collectionId);
+        for (final song in songs) {
+          if (songNumbers.contains(song.songNumber)) {
+            songToCollection[song.songNumber] = collectionId;
+          }
+        }
+      } catch (e) {
+        debugPrint('Error searching collection $collectionId: $e');
+      }
+    }
+
+    return songToCollection;
   }
 }

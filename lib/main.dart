@@ -1,4 +1,4 @@
-// lib/main.dart - Updated with FavoritesNotifier
+// lib/main.dart - UPDATED
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -10,18 +10,15 @@ import 'core/services/favorites_notifier.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase with proper error handling
+  // Initialize Firebase
   try {
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
       print('Firebase initialized successfully');
-    } else {
-      print('Using existing Firebase app instance');
     }
 
-    // Enable offline persistence for Realtime Database
     try {
       FirebaseDatabase.instance.setPersistenceEnabled(true);
       print('Firebase offline persistence enabled');
@@ -30,11 +27,9 @@ void main() async {
     }
   } on FirebaseException catch (e) {
     if (e.code == 'duplicate-app') {
-      print('Firebase already initialized, using existing instance');
-
+      print('Firebase already initialized');
       try {
         FirebaseDatabase.instance.setPersistenceEnabled(true);
-        print('Firebase offline persistence enabled');
       } catch (persistenceError) {
         print('Failed to enable offline persistence: $persistenceError');
       }
@@ -53,10 +48,17 @@ void main() async {
   final themeNotifier = ThemeNotifier();
   final favoritesNotifier = FavoritesNotifier();
 
-  await Future.wait([
-    themeNotifier.initialize(),
-    favoritesNotifier.initialize(),
-  ]);
+  // CRITICAL: Ensure migration runs before app starts
+  try {
+    await Future.wait([
+      themeNotifier.initialize(),
+      favoritesNotifier.initialize(), // Migration happens here
+    ]);
+    print('App initialization completed successfully');
+  } catch (e) {
+    print('Error during app initialization: $e');
+    // Continue with app launch even if initialization fails
+  }
 
   runApp(SongLyricsApp(
     themeNotifier: themeNotifier,
@@ -64,7 +66,6 @@ void main() async {
   ));
 }
 
-// Error app for Firebase initialization failures
 class FirebaseErrorApp extends StatelessWidget {
   final String error;
 
@@ -81,33 +82,18 @@ class FirebaseErrorApp extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: Colors.red,
-                ),
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
                 const SizedBox(height: 16),
-                const Text(
-                  'Firebase Initialization Failed',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+                const Text('Firebase Initialization Failed',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center),
                 const SizedBox(height: 16),
-                Text(
-                  'Error: $error',
-                  style: const TextStyle(fontSize: 14),
-                  textAlign: TextAlign.center,
-                ),
+                Text('Error: $error',
+                    style: const TextStyle(fontSize: 14),
+                    textAlign: TextAlign.center),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: () {
-                    main();
-                  },
-                  child: const Text('Retry'),
-                ),
+                    onPressed: () => main(), child: const Text('Retry')),
               ],
             ),
           ),

@@ -1,4 +1,4 @@
-// lib/data/models/song.dart - FIXED VERSION
+// lib/data/models/song.dart - UPDATED
 import 'package:equatable/equatable.dart';
 
 class Song extends Equatable {
@@ -14,10 +14,9 @@ class Song extends Equatable {
     required this.verses,
   });
 
-  // FIXED: Now properly reads collection_id from JSON
   factory Song.fromJson(Map<String, dynamic> json) {
     return Song(
-      collectionId: json['collection_id'] as String?, // FIX: Added this line
+      collectionId: json['collection_id'] as String?, // FIXED: Added this line
       songNumber: json['song_number'] as String,
       songTitle: json['song_title'] as String,
       verses: (json['verses'] as List<dynamic>)
