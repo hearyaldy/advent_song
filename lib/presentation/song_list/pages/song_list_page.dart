@@ -1,4 +1,4 @@
-// lib/presentation/song_list/pages/song_list_page.dart
+// lib/presentation/song_list/pages/song_list_page.dart - COMPLETE UPDATED VERSION
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -122,17 +122,15 @@ class _SongListPageState extends State<SongListPage> {
     }
   }
 
-  // --- THIS IS THE UPDATED METHOD ---
+  // UPDATED: Use collection-aware favorite methods
   Future<void> _toggleFavorite(Song song) async {
-    final bool isCurrentlyFavorite =
-        widget.favoritesNotifier.isFavorite(song.songNumber);
+    final bool isCurrentlyFavorite = widget.favoritesNotifier
+        .isFavoriteInCollection(widget.collectionId, song.songNumber);
 
-    await widget.favoritesNotifier.toggleFavorite(song.songNumber);
+    await widget.favoritesNotifier
+        .toggleFavoriteFromCollection(widget.collectionId, song.songNumber);
 
-    // If the song was NOT a favorite before, it means we just added it.
-    // Show a simple confirmation message at the bottom.
     if (!isCurrentlyFavorite && mounted) {
-      // Remove any existing SnackBars to prevent them from stacking.
       ScaffoldMessenger.of(context).removeCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -158,8 +156,8 @@ class _SongListPageState extends State<SongListPage> {
         break;
       case 'Favorites':
         tempSongs = tempSongs
-            .where(
-                (song) => widget.favoritesNotifier.isFavorite(song.songNumber))
+            .where((song) => widget.favoritesNotifier
+                .isFavoriteInCollection(widget.collectionId, song.songNumber))
             .toList();
         break;
       case 'Alphabet':
@@ -482,12 +480,14 @@ class _SongListPageState extends State<SongListPage> {
                             icon: AnimatedBuilder(
                               animation: widget.favoritesNotifier,
                               builder: (context, child) => Icon(
-                                widget.favoritesNotifier
-                                        .isFavorite(song.songNumber)
+                                widget.favoritesNotifier.isFavoriteInCollection(
+                                        widget.collectionId, song.songNumber)
                                     ? Icons.favorite
                                     : Icons.favorite_border,
                                 color: widget.favoritesNotifier
-                                        .isFavorite(song.songNumber)
+                                        .isFavoriteInCollection(
+                                            widget.collectionId,
+                                            song.songNumber)
                                     ? Colors.redAccent
                                     : null,
                               ),

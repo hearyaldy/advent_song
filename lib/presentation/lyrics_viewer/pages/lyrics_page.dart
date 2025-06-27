@@ -1,4 +1,4 @@
-// lib/presentation/lyrics_viewer/pages/lyrics_page.dart
+// lib/presentation/lyrics_viewer/pages/lyrics_page.dart - COMPLETE UPDATED VERSION
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -64,15 +64,17 @@ class _LyricsPageState extends State<LyricsPage> {
     });
   }
 
+  // UPDATED: Use collection-aware favorite methods
   Future<void> _toggleFavorite() async {
-    await widget.favoritesNotifier.toggleFavorite(widget.songId);
+    await widget.favoritesNotifier
+        .toggleFavoriteFromCollection(widget.collectionId, widget.songId);
 
-    // Show feedback
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.favoritesNotifier.isFavorite(widget.songId)
+            widget.favoritesNotifier
+                    .isFavoriteInCollection(widget.collectionId, widget.songId)
                 ? 'Added to favorites'
                 : 'Removed from favorites',
           ),
@@ -195,8 +197,8 @@ $lyrics''';
               }
 
               final song = snapshot.data!;
-              final isFavorite =
-                  widget.favoritesNotifier.isFavorite(widget.songId);
+              final isFavorite = widget.favoritesNotifier
+                  .isFavoriteInCollection(widget.collectionId, widget.songId);
 
               return CustomScrollView(
                 controller: _scrollController,
@@ -479,8 +481,8 @@ $lyrics''';
             builder: (context, snapshot) {
               if (snapshot.data == null) return const SizedBox();
               final song = snapshot.data!;
-              final isFavorite =
-                  widget.favoritesNotifier.isFavorite(widget.songId);
+              final isFavorite = widget.favoritesNotifier
+                  .isFavoriteInCollection(widget.collectionId, widget.songId);
 
               return Container(
                 padding: const EdgeInsets.all(16.0),

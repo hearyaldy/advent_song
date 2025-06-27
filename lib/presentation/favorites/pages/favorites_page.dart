@@ -1,4 +1,4 @@
-// lib/presentation/favorites/pages/favorites_page.dart
+// lib/presentation/favorites/pages/favorites_page.dart - FIXED VERSION
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
@@ -34,10 +34,46 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   void _loadFavorites() {
     setState(() {
-      _favoriteSongsFuture = JsonLoaderService.findSongsByNumbers(
-        widget.favoritesNotifier.favorites,
-      );
+      _favoriteSongsFuture = _loadFavoriteSongs();
     });
+  }
+
+  // FIXED: Use new collection-aware method
+  Future<List<Song>> _loadFavoriteSongs() async {
+    final favoritesByCollection =
+        widget.favoritesNotifier.getFavoritesByCollection();
+    final List<Song> allFavoriteSongs = [];
+
+    // Load songs from each collection separately
+    for (final entry in favoritesByCollection.entries) {
+      final collectionId = entry.key;
+      final songNumbers = entry.value;
+
+      try {
+        final songs =
+            await JsonLoaderService.loadSongsFromCollection(collectionId);
+        final favoriteSongs = songs
+            .where((song) => songNumbers.contains(song.songNumber))
+            .toList();
+
+        allFavoriteSongs.addAll(favoriteSongs);
+      } catch (e) {
+        debugPrint('Error loading favorites from $collectionId: $e');
+      }
+    }
+
+    // Sort by collection and song number
+    allFavoriteSongs.sort((a, b) {
+      final collectionCompare =
+          (a.collectionId ?? '').compareTo(b.collectionId ?? '');
+      if (collectionCompare != 0) return collectionCompare;
+
+      final aNum = int.tryParse(a.songNumber) ?? 0;
+      final bNum = int.tryParse(b.songNumber) ?? 0;
+      return aNum.compareTo(bNum);
+    });
+
+    return allFavoriteSongs;
   }
 
   @override
@@ -56,28 +92,21 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 child: Text('Error loading favorites: ${snapshot.error}'));
           }
 
-          // This filters the songs to ensure they belong to an existing collection
-          final validFavoriteSongs = snapshot.data
-                  ?.where((song) =>
-                      AppConstants.collections.containsKey(song.collectionId))
-                  .toList() ??
-              [];
+          final favoriteSongs = snapshot.data ?? [];
 
           return NestedScrollView(
             headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              _buildSliverAppBar(context, validFavoriteSongs.length),
+              _buildSliverAppBar(context, favoriteSongs.length),
             ],
-            body: validFavoriteSongs.isEmpty
+            body: favoriteSongs.isEmpty
                 ? _buildEmptyState()
-                : _buildFavoritesList(validFavoriteSongs),
+                : _buildFavoritesList(favoriteSongs),
           );
         },
       ),
       bottomNavigationBar: _buildBottomNavBar(context),
     );
   }
-
-  // --- WIDGET BUILDER METHODS ---
 
   Widget _buildSliverAppBar(BuildContext context, int count) {
     final theme = Theme.of(context);
@@ -140,11 +169,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 
   Widget _buildFavoritesList(List<Song> favoriteSongs) {
-    favoriteSongs.sort((a, b) =>
-        int.tryParse(a.songNumber)
-            ?.compareTo(int.tryParse(b.songNumber) ?? 0) ??
-        0);
-
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
       itemCount: favoriteSongs.length,
@@ -157,8 +181,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   Widget _buildFavoriteSongCard(Song song) {
     final theme = Theme.of(context);
-    // We can now be sure collectionMeta is not null because we filtered the list in the build method.
-    final collectionMeta = AppConstants.collections[song.collectionId]!;
+    final collectionMeta = AppConstants.collections[song.collectionId];
 
     return Card(
       elevation: 0,
@@ -168,11 +191,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
-          backgroundColor: (collectionMeta.colorTheme).withAlpha(25),
+          backgroundColor:
+              (collectionMeta?.colorTheme ?? theme.colorScheme.primary)
+                  .withAlpha(25),
           child: Text(
             song.songNumber,
             style: TextStyle(
-              color: collectionMeta.colorTheme,
+              color: collectionMeta?.colorTheme ?? theme.colorScheme.primary,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -180,7 +205,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
         title: Text(song.songTitle,
             style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
-          collectionMeta.displayName,
+          collectionMeta?.displayName ?? 'Unknown Collection',
           style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
         ),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
@@ -236,7 +261,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
             context.go('/');
             break;
           case 1:
-            // This now correctly navigates to the 'srd' collection by default.
             context.go('/collection/srd');
             break;
           case 2:

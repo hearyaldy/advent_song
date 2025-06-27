@@ -1,4 +1,4 @@
-// lib/presentation/dashboard/pages/figma_dashboard_page.dart
+// lib/presentation/dashboard/pages/figma_dashboard_page.dart - COMPLETE UPDATED VERSION
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -115,10 +115,12 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     }
   }
 
+  // UPDATED: Use new collection-aware favorite methods
   Future<void> _loadRecentFavorites() async {
-    final favoriteSongNumbers =
-        widget.favoritesNotifier.favorites.reversed.take(3).toList();
-    if (favoriteSongNumbers.isEmpty) {
+    final recentFavoritesWithCollection =
+        widget.favoritesNotifier.getRecentFavoritesWithCollection();
+
+    if (recentFavoritesWithCollection.isEmpty) {
       if (mounted) {
         setState(() {
           _recentFavorites = [];
@@ -127,23 +129,40 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
       return;
     }
 
-    final foundSongs =
-        await JsonLoaderService.findSongsByNumbers(favoriteSongNumbers);
+    final List<Map<String, dynamic>> foundFavorites = [];
 
-    final validSongs = foundSongs
-        .where(
-            (song) => AppConstants.collections.containsKey(song.collectionId))
-        .toList();
+    // Load each favorite with its collection context
+    for (final favoriteInfo in recentFavoritesWithCollection) {
+      final collectionId = favoriteInfo['collectionId']!;
+      final songNumber = favoriteInfo['songNumber']!;
 
-    _recentFavorites = validSongs.map((song) {
-      final collectionInfo = AppConstants.collections[song.collectionId]!;
-      return {
-        'song_number': song.songNumber,
-        'song_title': song.songTitle,
-        'collection': collectionInfo.displayName,
-        'collection_id': song.collectionId,
-      };
-    }).toList();
+      try {
+        final songs =
+            await JsonLoaderService.loadSongsFromCollection(collectionId);
+        final song = songs.firstWhere(
+          (s) => s.songNumber == songNumber,
+          orElse: () => throw Exception('Song not found'),
+        );
+
+        final collectionInfo = AppConstants.collections[collectionId];
+        if (collectionInfo != null) {
+          foundFavorites.add({
+            'song_number': song.songNumber,
+            'song_title': song.songTitle,
+            'collection': collectionInfo.displayName,
+            'collection_id': song.collectionId,
+          });
+        }
+      } catch (e) {
+        debugPrint('Error loading favorite $songNumber from $collectionId: $e');
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _recentFavorites = foundFavorites;
+      });
+    }
   }
 
   Future<void> _loadVerseOfTheDay() async {
