@@ -1,9 +1,10 @@
 // lib/presentation/auth/pages/profile_page.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../../core/services/auth_service.dart';
 
+/// A page where users can view and update their profile information,
+/// manage their account, and access admin tools if they have the correct role.
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -14,6 +15,7 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final _nameController = TextEditingController();
   final _nicknameController = TextEditingController();
+
   bool _isLoading = true;
   bool _isUpdating = false;
   bool _isAdmin = false;
@@ -32,6 +34,8 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
+  /// Fetches the user's profile data from the AuthService.
+  /// Redirects to the login page if the user is not authenticated.
   Future<void> _loadUserProfile() async {
     if (!AuthService.isLoggedIn) {
       if (mounted) context.go('/login');
@@ -59,6 +63,8 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  /// Handles the profile update logic.
+  /// After a successful update, it reloads the profile to ensure UI consistency.
   Future<void> _updateProfile() async {
     FocusScope.of(context).unfocus();
     setState(() => _isUpdating = true);
@@ -68,39 +74,29 @@ class _ProfilePageState extends State<ProfilePage> {
       nickname: _nicknameController.text.trim(),
     );
 
-    // LOGIC REFINEMENT: After a successful update, reload the user profile
-    // to ensure all parts of the app (including AuthService.userName) have the fresh data.
     if (result.isSuccess) {
-      await _loadUserProfile(); // This reloads all user info
+      // Reload the user profile to ensure all parts of the app
+      // (including AuthService.userName) have the fresh data.
+      await _loadUserProfile();
       if (mounted) {
-        setState(() => _isUpdating = false);
         _showMessage('Profile updated successfully', isError: false);
       }
     } else {
       if (mounted) {
-        setState(() => _isUpdating = false);
         _showMessage(result.message, isError: true);
       }
     }
+
+    if (mounted) {
+      setState(() => _isUpdating = false);
+    }
   }
 
+  /// Shows a confirmation dialog and logs the user out.
   Future<void> _handleLogout() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
+    final confirm = await _showConfirmationDialog(
+      title: 'Logout',
+      content: 'Are you sure you want to logout?',
     );
 
     if (confirm == true) {
@@ -109,26 +105,14 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  /// Shows a confirmation dialog and deletes the user's account.
   Future<void> _handleDeleteAccount() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Account'),
-        content: const Text(
+    final confirm = await _showConfirmationDialog(
+      title: 'Delete Account',
+      content:
           'Are you sure? This action is permanent and will remove all your data.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete Account'),
-          ),
-        ],
-      ),
+      confirmText: 'Delete Account',
+      isDestructive: true,
     );
 
     if (confirm == true) {
@@ -144,6 +128,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  /// Displays a message to the user in a floating SnackBar.
   void _showMessage(String message, {required bool isError}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -160,9 +145,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Profile')),
@@ -170,7 +152,7 @@ class _ProfilePageState extends State<ProfilePage> {
       );
     }
 
-    // This handles the case where the user logs out and this widget rebuilds
+    // This handles the case where the widget rebuilds after logout.
     if (!AuthService.isLoggedIn) {
       return Scaffold(
         body: Center(
@@ -183,10 +165,21 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            // This ensures the back button always has a place to go.
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/'); // Fallback to home page
+            }
+          },
+        ),
         title: const Text('Profile'),
-        backgroundColor: colorScheme.surface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         actions: [
           IconButton(
               onPressed: _handleLogout,
@@ -200,104 +193,81 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // --- UI REFRESH: Modernized Profile Header ---
             _buildProfileHeader(context),
             const SizedBox(height: 32),
-
             _buildSectionTitle(
                 context, 'Edit Information', Icons.edit_note_rounded),
             const SizedBox(height: 16),
-
-            // --- UI REFRESH: Modernized TextFields ---
-            TextFormField(
-              controller: _nameController,
-              decoration: InputDecoration(
-                labelText: 'Full Name',
-                prefixIcon: const Icon(Icons.person_outline_rounded),
-                filled: true,
-                fillColor: colorScheme.surfaceContainerHighest,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _nicknameController,
-              decoration: InputDecoration(
-                labelText: 'Nickname',
-                prefixIcon: const Icon(Icons.tag_faces_rounded),
-                helperText: 'How you would like to be called?',
-                filled: true,
-                fillColor: colorScheme.surfaceContainerHighest,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _isUpdating ? null : _updateProfile,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colorScheme.primary,
-                foregroundColor: colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              child: _isUpdating
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 3))
-                  : const Text('Save Changes'),
-            ),
+            _buildProfileForm(context),
             const SizedBox(height: 32),
-
-            // Quick Actions
-            if (_isAdmin) ...[
-              _buildSectionTitle(
-                  context, 'Admin Tools', Icons.admin_panel_settings_rounded),
-              const SizedBox(height: 12),
-              _buildActionTile(
-                context,
-                icon: Icons.article_rounded,
-                iconColor: Colors.orange,
-                title: 'Sermon Management',
-                subtitle: 'Add, edit, or delete sermons',
-                onTap: () => context.go('/admin/sermons'),
-              ),
-              const SizedBox(height: 32),
-            ],
-
-            // Danger Zone
+            if (_isAdmin) _buildAdminTools(context),
             _buildSectionTitle(
                 context, 'Danger Zone', Icons.warning_amber_rounded),
             const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colorScheme.error.withOpacity(0.5)),
-              ),
-              child: ListTile(
-                leading: Icon(Icons.delete_forever_rounded,
-                    color: colorScheme.error),
-                title: Text('Delete Account',
-                    style: TextStyle(
-                        color: colorScheme.error, fontWeight: FontWeight.bold)),
-                subtitle: const Text('This action is permanent'),
-                onTap: _handleDeleteAccount,
-              ),
-            ),
+            _buildDangerZone(context),
           ],
         ),
       ),
     );
   }
 
+  /// Builds the main content of the profile form.
+  Widget _buildProfileForm(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextFormField(
+          controller: _nameController,
+          decoration: InputDecoration(
+            labelText: 'Full Name',
+            prefixIcon: const Icon(Icons.person_outline_rounded),
+            filled: true,
+            fillColor: colorScheme.surfaceContainerHighest,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _nicknameController,
+          decoration: InputDecoration(
+            labelText: 'Nickname',
+            prefixIcon: const Icon(Icons.tag_faces_rounded),
+            helperText: 'How you would like to be called?',
+            filled: true,
+            fillColor: colorScheme.surfaceContainerHighest,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: _isUpdating ? null : _updateProfile,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: colorScheme.primary,
+            foregroundColor: colorScheme.onPrimary,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: _isUpdating
+              ? const SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 3))
+              : const Text('Save Changes'),
+        ),
+      ],
+    );
+  }
+
+  /// Builds the header section with the user's avatar and name.
   Widget _buildProfileHeader(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -322,8 +292,9 @@ class _ProfilePageState extends State<ProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                // Use the name from the loaded profile for consistency
-                _nameController.text,
+                _nameController.text.isNotEmpty
+                    ? _nameController.text
+                    : 'Guest',
                 style: theme.textTheme.headlineSmall
                     ?.copyWith(fontWeight: FontWeight.bold),
                 maxLines: 1,
@@ -341,26 +312,65 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         if (_isAdmin) ...[
           const SizedBox(width: 8),
-          Icon(Icons.shield_rounded, color: Colors.orange, size: 28),
+          const Icon(Icons.shield_rounded, color: Colors.orange, size: 28),
         ]
       ],
     );
   }
 
+  /// Builds the section for administrator-only actions.
+  Widget _buildAdminTools(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle(
+            context, 'Admin Tools', Icons.admin_panel_settings_rounded),
+        const SizedBox(height: 12),
+        _buildActionTile(
+          context,
+          icon: Icons.article_rounded,
+          iconColor: Colors.orange,
+          title: 'Sermon Management',
+          subtitle: 'Add, edit, or delete sermons',
+          onTap: () => context.go('/admin/sermons'),
+        ),
+        const SizedBox(height: 32),
+      ],
+    );
+  }
+
+  /// Builds the section for dangerous, irreversible actions.
+  Widget _buildDangerZone(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.error.withOpacity(0.5)),
+      ),
+      child: ListTile(
+        leading: Icon(Icons.delete_forever_rounded, color: colorScheme.error),
+        title: Text('Delete Account',
+            style: TextStyle(
+                color: colorScheme.error, fontWeight: FontWeight.bold)),
+        subtitle: const Text('This action is permanent'),
+        onTap: _handleDeleteAccount,
+      ),
+    );
+  }
+
+  /// A generic builder for section titles with an icon.
   Widget _buildSectionTitle(BuildContext context, String title, IconData icon) {
     final theme = Theme.of(context);
     return Row(
       children: [
         Icon(icon, color: theme.colorScheme.primary, size: 20),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: theme.textTheme.titleLarge,
-        ),
+        Text(title, style: theme.textTheme.titleLarge),
       ],
     );
   }
 
+  /// A generic builder for clickable list tiles used for actions.
   Widget _buildActionTile(
     BuildContext context, {
     required IconData icon,
@@ -384,14 +394,33 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  String _formatDate(dynamic timestamp) {
-    if (timestamp == null) return 'Unknown';
-    // This handles Firestore Timestamps as well as other formats
-    try {
-      final date = timestamp.toDate();
-      return DateFormat('MMMM yyyy').format(date);
-    } catch (e) {
-      return 'Unknown';
-    }
+  /// A generic confirmation dialog.
+  Future<bool?> _showConfirmationDialog({
+    required String title,
+    required String content,
+    String confirmText = 'Confirm',
+    bool isDestructive = false,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: isDestructive
+                ? FilledButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.error)
+                : null,
+            child: Text(confirmText),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/sermon_service.dart';
-// The import for AppDialogs has been removed.
 
 class SermonPage extends StatefulWidget {
   const SermonPage({super.key});
@@ -85,10 +84,48 @@ class _SermonPageState extends State<SermonPage> {
   // --- UI HELPER METHODS ---
 
   Widget _buildSliverAppBar(BuildContext context) {
+    final theme = Theme.of(context);
     return SliverAppBar(
       pinned: true,
-      floating: true,
-      title: const Text('Sermons'),
+      expandedHeight: 120,
+      backgroundColor: theme.colorScheme.surface,
+      surfaceTintColor: theme.colorScheme.surface,
+      elevation: 1,
+      flexibleSpace: FlexibleSpaceBar(
+        titlePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        centerTitle: false,
+        title: Text(
+          'Sermons',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            shadows: [
+              const Shadow(
+                  color: Colors.black54, blurRadius: 4, offset: Offset(0, 1))
+            ],
+          ),
+        ),
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/header_image.png',
+              fit: BoxFit.cover,
+              color: theme.colorScheme.primary.withOpacity(0.3),
+              colorBlendMode: BlendMode.multiply,
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.black.withOpacity(0.4), Colors.transparent],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
       actions: [
         if (_isAdmin)
           IconButton(
@@ -299,7 +336,6 @@ class _SermonPageState extends State<SermonPage> {
     );
   }
 
-  // --- THIS METHOD IS NOW CORRECTED AND COMPLETE ---
   BottomNavigationBar _buildBottomNavBar(BuildContext context) {
     return BottomNavigationBar(
       currentIndex: _selectedNavIndex,
@@ -317,7 +353,7 @@ class _SermonPageState extends State<SermonPage> {
             break; // Current Page
           case 3:
             context.go('/settings');
-            break; // Correctly navigates to Settings
+            break;
         }
       },
       type: BottomNavigationBarType.fixed,
@@ -328,14 +364,12 @@ class _SermonPageState extends State<SermonPage> {
             icon: Icon(Icons.music_note_rounded), label: 'Songs'),
         BottomNavigationBarItem(
             icon: Icon(Icons.church_rounded), label: 'Sermons'),
-        // This is now a Settings button, not an About button
         BottomNavigationBarItem(
             icon: Icon(Icons.settings_rounded), label: 'Settings'),
       ],
     );
   }
 
-  // --- THIS METHOD IS NOW CORRECTED AND COMPLETE ---
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -354,7 +388,6 @@ class _SermonPageState extends State<SermonPage> {
     );
   }
 
-  // --- THIS METHOD IS NOW CORRECTED AND COMPLETE ---
   Widget _buildErrorState(String error) {
     return Center(
       child: Padding(

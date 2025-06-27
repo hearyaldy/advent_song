@@ -4,12 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-import '../../../data/models/song_collection.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/json_loader_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/favorites_notifier.dart';
-import '../../../data/models/song.dart';
 
 class FigmaDashboardPage extends StatefulWidget {
   final FavoritesNotifier favoritesNotifier;
