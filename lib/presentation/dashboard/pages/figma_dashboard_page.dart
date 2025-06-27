@@ -1,4 +1,4 @@
-// lib/presentation/dashboard/pages/figma_dashboard_page.dart - UPDATED
+// lib/presentation/dashboard/pages/figma_dashboard_page.dart - MEMORY LEAK FIXES
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -28,28 +28,38 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
   String _greeting = '';
   IconData _greetingIcon = Icons.wb_sunny_rounded;
   String _userName = 'Guest';
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
+
+  // FIXED: Late initialization with null safety
+  AnimationController? _animationController;
+  Animation<double>? _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
-    );
+    _initializeAnimations();
     _initializePage();
     widget.favoritesNotifier.addListener(_onFavoritesChanged);
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    // FIXED: Safe disposal with null check
+    _animationController?.dispose();
     widget.favoritesNotifier.removeListener(_onFavoritesChanged);
     super.dispose();
+  }
+
+  // FIXED: Separate animation initialization
+  void _initializeAnimations() {
+    if (mounted) {
+      _animationController = AnimationController(
+        duration: const Duration(milliseconds: 800),
+        vsync: this,
+      );
+      _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(parent: _animationController!, curve: Curves.easeIn),
+      );
+    }
   }
 
   void _onFavoritesChanged() {
@@ -61,27 +71,43 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
   }
 
   Future<void> _initializePage() async {
-    await Future.wait([
-      _loadCollectionCounts(),
-      _loadRecentFavorites(),
-      _loadVerseOfTheDay(),
-      _loadUserInfo(),
-    ]);
-    _setGreetingAndDate();
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-      _animationController.forward();
+    try {
+      await Future.wait([
+        _loadCollectionCounts(),
+        _loadRecentFavorites(),
+        _loadVerseOfTheDay(),
+        _loadUserInfo(),
+      ]);
+      _setGreetingAndDate();
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        // FIXED: Safe animation start with null check
+        _animationController?.forward();
+      }
+    } catch (e) {
+      debugPrint('Error initializing dashboard: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _loadUserInfo() async {
-    if (AuthService.isLoggedIn) {
-      _userName = AuthService.userName;
-    } else {
-      final prefs = await SharedPreferences.getInstance();
-      _userName = prefs.getString('userName') ?? 'Guest';
+    try {
+      if (AuthService.isLoggedIn) {
+        _userName = AuthService.userName;
+      } else {
+        final prefs = await SharedPreferences.getInstance();
+        _userName = prefs.getString('userName') ?? 'Guest';
+      }
+    } catch (e) {
+      debugPrint('Error loading user info: $e');
+      _userName = 'Guest';
     }
   }
 
@@ -108,58 +134,70 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
       try {
         final songs =
             await JsonLoaderService.loadSongsFromCollection(entry.key);
-        _collectionCounts[entry.key] = songs.length;
+        if (mounted) {
+          _collectionCounts[entry.key] = songs.length;
+        }
       } catch (e) {
-        _collectionCounts[entry.key] = 0;
+        debugPrint('Error loading collection ${entry.key}: $e');
+        if (mounted) {
+          _collectionCounts[entry.key] = 0;
+        }
       }
     }
   }
 
   Future<void> _loadRecentFavorites() async {
-    final recentFavoritesWithCollection =
-        widget.favoritesNotifier.getRecentFavoritesWithCollection();
+    try {
+      final recentFavoritesWithCollection =
+          widget.favoritesNotifier.getRecentFavoritesWithCollection();
 
-    if (recentFavoritesWithCollection.isEmpty) {
-      if (mounted) {
-        setState(() {
-          _recentFavorites = [];
-        });
-      }
-      return;
-    }
-
-    final List<Map<String, dynamic>> foundFavorites = [];
-
-    for (final favoriteInfo in recentFavoritesWithCollection) {
-      final collectionId = favoriteInfo['collectionId']!;
-      final songNumber = favoriteInfo['songNumber']!;
-
-      try {
-        final songs =
-            await JsonLoaderService.loadSongsFromCollection(collectionId);
-        final song = songs.firstWhere(
-          (s) => s.songNumber == songNumber,
-          orElse: () => throw Exception('Song not found'),
-        );
-
-        final collectionInfo = AppConstants.collections[collectionId];
-        if (collectionInfo != null) {
-          foundFavorites.add({
-            'song_number': song.songNumber,
-            'song_title': song.songTitle,
-            'collection': collectionInfo.displayName,
-            'collection_id': song.collectionId,
+      if (recentFavoritesWithCollection.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _recentFavorites = [];
           });
         }
-      } catch (e) {
-        debugPrint('Error loading favorite $songNumber from $collectionId: $e');
+        return;
       }
-    }
 
-    if (mounted) {
-      setState(() {
-        _recentFavorites = foundFavorites;
-      });
+      final List<Map<String, dynamic>> foundFavorites = [];
+
+      for (final favoriteInfo in recentFavoritesWithCollection) {
+        if (!mounted) break; // Exit early if widget disposed
+
+        final collectionId = favoriteInfo['collectionId']!;
+        final songNumber = favoriteInfo['songNumber']!;
+
+        try {
+          final songs =
+              await JsonLoaderService.loadSongsFromCollection(collectionId);
+          final song = songs.firstWhere(
+            (s) => s.songNumber == songNumber,
+            orElse: () => throw Exception('Song not found'),
+          );
+
+          final collectionInfo = AppConstants.collections[collectionId];
+          if (collectionInfo != null && mounted) {
+            foundFavorites.add({
+              'song_number': song.songNumber,
+              'song_title': song.songTitle,
+              'collection': collectionInfo.displayName,
+              'collection_id': song.collectionId,
+            });
+          }
+        } catch (e) {
+          debugPrint(
+              'Error loading favorite $songNumber from $collectionId: $e');
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _recentFavorites = foundFavorites;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading recent favorites: $e');
     }
   }
 
@@ -168,6 +206,8 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
       final allVerses = <Map<String, dynamic>>[];
       for (final entry in AppConstants.collections.entries) {
         if (entry.key == 'lpmi') continue;
+        if (!mounted) break; // Exit early if widget disposed
+
         try {
           final songs =
               await JsonLoaderService.loadSongsFromCollection(entry.key);
@@ -183,16 +223,20 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
               });
             }
           }
-        } catch (e) {}
+        } catch (e) {
+          debugPrint('Error loading verses from ${entry.key}: $e');
+        }
       }
 
-      if (allVerses.isNotEmpty) {
+      if (allVerses.isNotEmpty && mounted) {
         final today = DateTime.now();
         final seed = today.year * 10000 + today.month * 100 + today.day;
         final random = Random(seed);
         _verseOfTheDay = allVerses[random.nextInt(allVerses.length)];
       }
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('Error loading verse of the day: $e');
+    }
   }
 
   @override
@@ -201,41 +245,51 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    // FIXED: Use null-aware operator for animation
+    final animation = _fadeAnimation;
+    if (animation == null) {
+      return _buildContent(); // Fallback without animation
+    }
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: CustomScrollView(
-          slivers: [
-            _buildSliverAppBar(),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _buildSectionHeader('Verse of the Day'),
-                  const SizedBox(height: 16),
-                  if (_verseOfTheDay != null) _buildVerseOfTheDayCard(),
-                  const SizedBox(height: 32),
-                  _buildSectionHeader('Quick Access'),
-                  const SizedBox(height: 16),
-                  _buildQuickAccessCarousel(),
-                  const SizedBox(height: 32),
-                  _buildSectionHeader('Explore Collections'),
-                  const SizedBox(height: 16),
-                  _buildCollectionsCarousel(),
-                  const SizedBox(height: 32),
-                  if (_recentFavorites.isNotEmpty) ...[
-                    _buildSectionHeader('Recent Favorites',
-                        onViewAll: () => context.go('/favorites')),
-                    const SizedBox(height: 16),
-                    _buildRecentFavoritesList(),
-                  ]
-                ]),
-              ),
-            ),
-          ],
-        ),
+        opacity: animation,
+        child: _buildContent(),
       ),
+    );
+  }
+
+  Widget _buildContent() {
+    return CustomScrollView(
+      slivers: [
+        _buildSliverAppBar(),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              _buildSectionHeader('Verse of the Day'),
+              const SizedBox(height: 16),
+              if (_verseOfTheDay != null) _buildVerseOfTheDayCard(),
+              const SizedBox(height: 32),
+              _buildSectionHeader('Quick Access'),
+              const SizedBox(height: 16),
+              _buildQuickAccessCarousel(),
+              const SizedBox(height: 32),
+              _buildSectionHeader('Explore Collections'),
+              const SizedBox(height: 16),
+              _buildCollectionsCarousel(),
+              const SizedBox(height: 32),
+              if (_recentFavorites.isNotEmpty) ...[
+                _buildSectionHeader('Recent Favorites',
+                    onViewAll: () => context.go('/favorites')),
+                const SizedBox(height: 16),
+                _buildRecentFavoritesList(),
+              ]
+            ]),
+          ),
+        ),
+      ],
     );
   }
 

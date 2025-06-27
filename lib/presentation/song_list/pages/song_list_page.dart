@@ -1,4 +1,4 @@
-// lib/presentation/song_list/pages/song_list_page.dart - UPDATED
+// lib/presentation/song_list/pages/song_list_page.dart - MEMORY SAFETY FIXES
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -42,7 +42,9 @@ class _SongListPageState extends State<SongListPage> {
     widget.favoritesNotifier.addListener(_onFavoritesChanged);
     if (widget.openSearch) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        FocusScope.of(context).requestFocus(FocusNode());
+        if (mounted) {
+          FocusScope.of(context).requestFocus(FocusNode());
+        }
       });
     }
   }
@@ -55,12 +57,10 @@ class _SongListPageState extends State<SongListPage> {
   }
 
   void _onFavoritesChanged() {
-    if (_selectedFilter == 'Favorites') {
-      if (mounted) {
-        setState(() {
-          _applyCurrentFilter();
-        });
-      }
+    if (_selectedFilter == 'Favorites' && mounted) {
+      setState(() {
+        _applyCurrentFilter();
+      });
     }
   }
 
@@ -73,53 +73,54 @@ class _SongListPageState extends State<SongListPage> {
   }
 
   Future<void> _initializeApp() async {
-    if (mounted) {
-      setState(() {
-        _isLoading = true;
-      });
-    }
-    await _loadCollection();
-    _getCurrentDate();
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _loadCollection();
+      _getCurrentDate();
+    } catch (e) {
+      debugPrint('Error initializing app: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   void _getCurrentDate() {
     final now = DateTime.now();
     final formattedDate = DateFormat('EEEE | MMMM d, yyyy').format(now);
-    if (mounted) {
-      setState(() {
-        _currentDate = formattedDate;
-      });
-    }
+    _currentDate = formattedDate;
   }
 
   Future<void> _loadCollection() async {
     try {
       final collection =
           await JsonLoaderService.loadCollection(widget.collectionId);
-      if (mounted) {
-        setState(() {
-          _songs = collection.songs;
-          _filteredSongs = _songs;
-          _searchController.clear();
-          _searchQuery = '';
-          _selectedFilter = 'All';
-        });
-      }
+      if (!mounted) return;
 
-      if (widget.showFavoritesOnly) {
-        if (mounted) {
-          setState(() {
-            _selectedFilter = 'Favorites';
-          });
-        }
+      setState(() {
+        _songs = collection.songs;
+        _filteredSongs = _songs;
+        _searchController.clear();
+        _searchQuery = '';
+        _selectedFilter = 'All';
+      });
+
+      if (widget.showFavoritesOnly && mounted) {
+        setState(() {
+          _selectedFilter = 'Favorites';
+        });
         _applyCurrentFilter();
       }
     } catch (e) {
+      debugPrint('Error loading collection: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading collection: $e')),
@@ -129,30 +130,33 @@ class _SongListPageState extends State<SongListPage> {
   }
 
   Future<void> _toggleFavorite(Song song) async {
-    final bool isCurrentlyFavorite = widget.favoritesNotifier
-        .isFavoriteInCollection(widget.collectionId, song.songNumber);
+    try {
+      final bool isCurrentlyFavorite = widget.favoritesNotifier
+          .isFavoriteInCollection(widget.collectionId, song.songNumber);
 
-    await widget.favoritesNotifier
-        .toggleFavoriteFromCollection(widget.collectionId, song.songNumber);
+      await widget.favoritesNotifier
+          .toggleFavoriteFromCollection(widget.collectionId, song.songNumber);
 
-    if (!isCurrentlyFavorite && mounted) {
-      ScaffoldMessenger.of(context).removeCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("'${song.songTitle}' added to favorites."),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      if (!isCurrentlyFavorite && mounted) {
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("'${song.songTitle}' added to favorites."),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error toggling favorite: $e');
     }
   }
 
   void _filterSongs(String query) {
-    if (mounted) {
-      setState(() {
-        _searchQuery = query;
-        _applyCurrentFilter();
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _searchQuery = query;
+      _applyCurrentFilter();
+    });
   }
 
   void _applyCurrentFilter() {
@@ -196,12 +200,11 @@ class _SongListPageState extends State<SongListPage> {
   }
 
   void _onFilterChanged(String filter) {
-    if (mounted) {
-      setState(() {
-        _selectedFilter = filter;
-        _applyCurrentFilter();
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _selectedFilter = filter;
+      _applyCurrentFilter();
+    });
   }
 
   @override
@@ -622,6 +625,8 @@ class _SongListPageState extends State<SongListPage> {
   }
 
   void _showCollectionMenu() {
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -772,10 +777,8 @@ class _SongListPageState extends State<SongListPage> {
     return BottomNavigationBar(
       currentIndex: _selectedNavIndex,
       onTap: (index) {
-        if (index == _selectedNavIndex) return;
-        if (mounted) {
-          setState(() => _selectedNavIndex = index);
-        }
+        if (index == _selectedNavIndex || !mounted) return;
+        setState(() => _selectedNavIndex = index);
         switch (index) {
           case 0:
             context.go('/');
