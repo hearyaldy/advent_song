@@ -41,12 +41,24 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
     _initializePage();
+    // Listen for changes in favorites to keep the list up-to-date.
+    widget.favoritesNotifier.addListener(_onFavoritesChanged);
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    widget.favoritesNotifier.removeListener(_onFavoritesChanged);
     super.dispose();
+  }
+
+  /// Refreshes the recent favorites list when the notifier updates.
+  void _onFavoritesChanged() {
+    _loadRecentFavorites().then((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   Future<void> _initializePage() async {
@@ -102,8 +114,15 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
 
   Future<void> _loadRecentFavorites() async {
     final favoriteSongNumbers =
-        widget.favoritesNotifier.favorites.take(3).toList();
-    if (favoriteSongNumbers.isEmpty) return;
+        widget.favoritesNotifier.favorites.reversed.take(3).toList();
+    if (favoriteSongNumbers.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _recentFavorites = [];
+        });
+      }
+      return;
+    }
 
     final foundSongs =
         await JsonLoaderService.findSongsByNumbers(favoriteSongNumbers);
@@ -123,6 +142,8 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     try {
       final allVerses = <Map<String, dynamic>>[];
       for (final entry in AppConstants.collections.entries) {
+        // Skip the 'lpmi' collection for the verse of the day
+        if (entry.key == 'lpmi') continue;
         try {
           final songs =
               await JsonLoaderService.loadSongsFromCollection(entry.key);
@@ -138,7 +159,9 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
               });
             }
           }
-        } catch (e) {}
+        } catch (e) {
+          // Ignore errors for individual collections
+        }
       }
 
       if (allVerses.isNotEmpty) {
@@ -147,7 +170,9 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
         final random = Random(seed);
         _verseOfTheDay = allVerses[random.nextInt(allVerses.length)];
       }
-    } catch (e) {}
+    } catch (e) {
+      // Ignore top-level errors
+    }
   }
 
   @override
@@ -371,7 +396,8 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
       {
         'icon': Icons.music_note_rounded,
         'label': 'Songs',
-        'route': '/collection/lpmi',
+        // Changed default songs collection from 'lpmi' to 'srd'
+        'route': '/collection/srd',
         'color': Colors.blue.shade400
       },
       {
@@ -439,7 +465,9 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
   }
 
   Widget _buildCollectionsCarousel() {
-    final collections = AppConstants.collections.values.toList();
+    // Filter out the 'lpmi' collection
+    final collections =
+        AppConstants.collections.values.where((c) => c.id != 'lpmi').toList();
     return SizedBox(
       height: 150,
       child: ListView.separated(
@@ -538,6 +566,12 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
               final songNumber = song['song_number'];
               if (collectionId != null && songNumber != null) {
                 context.go('/lyrics/$collectionId/$songNumber');
+              } else {
+                // Diagnostic message if navigation fails
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Error: Could not find song details.')),
+                );
               }
             },
           ),

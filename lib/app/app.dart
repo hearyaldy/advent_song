@@ -15,7 +15,8 @@ import '../presentation/auth/pages/register_page.dart';
 import '../presentation/auth/pages/profile_page.dart';
 import '../presentation/favorites/pages/favorites_page.dart';
 
-class SongLyricsApp extends StatelessWidget {
+// The app widget is now a StatefulWidget to create a stable router instance.
+class SongLyricsApp extends StatefulWidget {
   final ThemeNotifier themeNotifier;
   final FavoritesNotifier favoritesNotifier;
 
@@ -26,22 +27,38 @@ class SongLyricsApp extends StatelessWidget {
   });
 
   @override
+  State<SongLyricsApp> createState() => _SongLyricsAppState();
+}
+
+class _SongLyricsAppState extends State<SongLyricsApp> {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    // The router is created once here and will not be rebuilt on state changes.
+    _router = _createRouter();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // The AnimatedBuilder now only rebuilds the MaterialApp, not the router itself.
     return AnimatedBuilder(
-      animation: Listenable.merge([themeNotifier, favoritesNotifier]),
+      animation: widget.themeNotifier,
       builder: (context, child) {
         return MaterialApp.router(
           title: 'Song Lyrics App',
-          theme: themeNotifier.lightTheme,
-          darkTheme: themeNotifier.darkTheme,
-          themeMode: themeNotifier.themeMode,
-          routerConfig: _createRouter(),
+          theme: widget.themeNotifier.lightTheme,
+          darkTheme: widget.themeNotifier.darkTheme,
+          themeMode: widget.themeNotifier.themeMode,
+          routerConfig: _router, // Use the stable router instance.
           debugShowCheckedModeBanner: false,
         );
       },
     );
   }
 
+  // The router configuration is now defined in the state.
   GoRouter _createRouter() {
     return GoRouter(
       initialLocation: '/',
@@ -49,7 +66,7 @@ class SongLyricsApp extends StatelessWidget {
         GoRoute(
           path: '/',
           builder: (context, state) =>
-              FigmaDashboardPage(favoritesNotifier: favoritesNotifier),
+              FigmaDashboardPage(favoritesNotifier: widget.favoritesNotifier),
         ),
         GoRoute(
           path: '/login',
@@ -71,7 +88,7 @@ class SongLyricsApp extends StatelessWidget {
             return SongListPage(
               collectionId: collectionId,
               openSearch: openSearch,
-              favoritesNotifier: favoritesNotifier,
+              favoritesNotifier: widget.favoritesNotifier,
             );
           },
         ),
@@ -83,17 +100,15 @@ class SongLyricsApp extends StatelessWidget {
             return LyricsPage(
               collectionId: collectionId,
               songId: songId,
-              favoritesNotifier: favoritesNotifier,
+              favoritesNotifier: widget.favoritesNotifier,
             );
           },
         ),
         GoRoute(
           path: '/settings',
           builder: (context, state) =>
-              SettingsPage(themeNotifier: themeNotifier),
+              SettingsPage(themeNotifier: widget.themeNotifier),
         ),
-        // --- THIS IS THE CRITICAL LINE ---
-        // Ensures `/sermons` builds the correct public page
         GoRoute(
           path: '/sermons',
           builder: (context, state) => const SermonPage(),
@@ -118,12 +133,13 @@ class SongLyricsApp extends StatelessWidget {
         GoRoute(
           path: '/favorites',
           builder: (context, state) => FavoritesPage(
-            favoritesNotifier: favoritesNotifier,
+            favoritesNotifier: widget.favoritesNotifier,
           ),
         ),
         GoRoute(
           path: '/search',
-          redirect: (context, state) => '/collection/lpmi?search=true',
+          // Changed default search collection from 'lpmi' to 'srd'
+          redirect: (context, state) => '/collection/srd?search=true',
         ),
       ],
       errorBuilder: (context, state) => Scaffold(

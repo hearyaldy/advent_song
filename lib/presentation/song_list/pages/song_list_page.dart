@@ -176,7 +176,8 @@ class _SongListPageState extends State<SongListPage> {
           .toList();
     }
 
-    // No need to call setState here, it's called by the methods that use this.
+    // This updates the state with the newly filtered songs.
+    // It's called from other methods that already use setState.
     _filteredSongs = tempSongs;
   }
 
@@ -434,9 +435,6 @@ class _SongListPageState extends State<SongListPage> {
                     itemCount: _filteredSongs.length,
                     itemBuilder: (context, index) {
                       final song = _filteredSongs[index];
-                      final isFavorite =
-                          widget.favoritesNotifier.isFavorite(song.songNumber);
-
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8.0),
                         elevation: 1,
@@ -675,10 +673,15 @@ class _SongListPageState extends State<SongListPage> {
                 child: ListView.builder(
                   controller: scrollController,
                   shrinkWrap: true,
-                  itemCount: AppConstants.collections.length,
+                  // Filter the list of collections to exclude 'lpmi'
+                  itemCount: AppConstants.collections.values
+                      .where((c) => c.id != 'lpmi')
+                      .length,
                   itemBuilder: (context, index) {
-                    final collection =
-                        AppConstants.collections.values.elementAt(index);
+                    final collections = AppConstants.collections.values
+                        .where((c) => c.id != 'lpmi')
+                        .toList();
+                    final collection = collections[index];
                     final isSelected = collection.id == widget.collectionId;
 
                     return Container(
