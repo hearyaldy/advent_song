@@ -56,15 +56,20 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 child: Text('Error loading favorites: ${snapshot.error}'));
           }
 
-          final favoriteSongs = snapshot.data ?? [];
+          // This filters the songs to ensure they belong to an existing collection
+          final validFavoriteSongs = snapshot.data
+                  ?.where((song) =>
+                      AppConstants.collections.containsKey(song.collectionId))
+                  .toList() ??
+              [];
 
           return NestedScrollView(
             headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              _buildSliverAppBar(context, favoriteSongs.length),
+              _buildSliverAppBar(context, validFavoriteSongs.length),
             ],
-            body: favoriteSongs.isEmpty
+            body: validFavoriteSongs.isEmpty
                 ? _buildEmptyState()
-                : _buildFavoritesList(favoriteSongs),
+                : _buildFavoritesList(validFavoriteSongs),
           );
         },
       ),
@@ -152,12 +157,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   Widget _buildFavoriteSongCard(Song song) {
     final theme = Theme.of(context);
-    final collectionMeta = AppConstants.collections[song.collectionId];
-
-    // Filter out cards for songs from collections that no longer exist
-    if (collectionMeta == null) {
-      return const SizedBox.shrink(); // Return an empty widget
-    }
+    // We can now be sure collectionMeta is not null because we filtered the list in the build method.
+    final collectionMeta = AppConstants.collections[song.collectionId]!;
 
     return Card(
       elevation: 0,

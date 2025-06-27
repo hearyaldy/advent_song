@@ -52,7 +52,6 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     super.dispose();
   }
 
-  /// Refreshes the recent favorites list when the notifier updates.
   void _onFavoritesChanged() {
     _loadRecentFavorites().then((_) {
       if (mounted) {
@@ -105,7 +104,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
 
   Future<void> _loadCollectionCounts() async {
     for (final entry in AppConstants.collections.entries) {
-      if (entry.key == 'lpmi') continue; // Skip LPMI collection
+      if (entry.key == 'lpmi') continue;
       try {
         final songs =
             await JsonLoaderService.loadSongsFromCollection(entry.key);
@@ -131,18 +130,17 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     final foundSongs =
         await JsonLoaderService.findSongsByNumbers(favoriteSongNumbers);
 
-    // Filter out songs from collections that no longer exist (e.g., 'lpmi')
     final validSongs = foundSongs
         .where(
             (song) => AppConstants.collections.containsKey(song.collectionId))
         .toList();
 
     _recentFavorites = validSongs.map((song) {
-      final collectionInfo = AppConstants.collections[song.collectionId];
+      final collectionInfo = AppConstants.collections[song.collectionId]!;
       return {
         'song_number': song.songNumber,
         'song_title': song.songTitle,
-        'collection': collectionInfo?.displayName ?? 'Unknown',
+        'collection': collectionInfo.displayName,
         'collection_id': song.collectionId,
       };
     }).toList();
@@ -152,7 +150,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     try {
       final allVerses = <Map<String, dynamic>>[];
       for (final entry in AppConstants.collections.entries) {
-        if (entry.key == 'lpmi') continue; // Skip LPMI collection
+        if (entry.key == 'lpmi') continue;
         try {
           final songs =
               await JsonLoaderService.loadSongsFromCollection(entry.key);
@@ -168,9 +166,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
               });
             }
           }
-        } catch (e) {
-          // Ignore errors for individual collections
-        }
+        } catch (e) {}
       }
 
       if (allVerses.isNotEmpty) {
@@ -179,9 +175,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
         final random = Random(seed);
         _verseOfTheDay = allVerses[random.nextInt(allVerses.length)];
       }
-    } catch (e) {
-      // Ignore top-level errors
-    }
+    } catch (e) {}
   }
 
   @override
@@ -427,7 +421,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
       {
         'icon': Icons.music_note_rounded,
         'label': 'Songs',
-        'route': '/collection/srd', // Default to SRD instead of LPMI
+        'route': '/collection/srd',
         'color': Colors.blue.shade400
       },
       {
@@ -495,7 +489,6 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
   }
 
   Widget _buildCollectionsCarousel() {
-    // Filter out the 'lpmi' collection
     final collections =
         AppConstants.collections.values.where((c) => c.id != 'lpmi').toList();
     return SizedBox(
@@ -611,7 +604,6 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
 
   IconData _getCollectionIcon(String collectionId) {
     switch (collectionId) {
-      // The 'lpmi' case has been removed.
       case 'srd':
         return Icons.auto_stories_rounded;
       case 'lagu_iban':

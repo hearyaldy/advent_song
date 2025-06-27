@@ -54,16 +54,12 @@ class _SongListPageState extends State<SongListPage> {
     super.dispose();
   }
 
-  /// This method is called whenever the favorites list changes.
-  /// It re-applies the filter if the user is currently viewing the favorites.
   void _onFavoritesChanged() {
     if (_selectedFilter == 'Favorites') {
-      // Use setState to trigger a rebuild with the updated list.
       setState(() {
         _applyCurrentFilter();
       });
     }
-    // No need to call setState for other filters as the icon will update automatically.
   }
 
   @override
@@ -126,10 +122,25 @@ class _SongListPageState extends State<SongListPage> {
     }
   }
 
+  // --- THIS IS THE UPDATED METHOD ---
   Future<void> _toggleFavorite(Song song) async {
-    // We only need to update the favorite status.
-    // The listener (_onFavoritesChanged) will handle the UI update if needed.
+    final bool isCurrentlyFavorite =
+        widget.favoritesNotifier.isFavorite(song.songNumber);
+
     await widget.favoritesNotifier.toggleFavorite(song.songNumber);
+
+    // If the song was NOT a favorite before, it means we just added it.
+    // Show a simple confirmation message at the bottom.
+    if (!isCurrentlyFavorite && mounted) {
+      // Remove any existing SnackBars to prevent them from stacking.
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("'${song.songTitle}' added to favorites."),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   void _filterSongs(String query) {
@@ -176,8 +187,6 @@ class _SongListPageState extends State<SongListPage> {
           .toList();
     }
 
-    // This updates the state with the newly filtered songs.
-    // It's called from other methods that already use setState.
     _filteredSongs = tempSongs;
   }
 
@@ -596,8 +605,6 @@ class _SongListPageState extends State<SongListPage> {
     if (metadata == null) return 'Songs';
 
     switch (metadata.id) {
-      case 'lpmi':
-        return 'LPMI';
       case 'srd':
         return 'SRD';
       case 'lagu_iban':
@@ -673,7 +680,6 @@ class _SongListPageState extends State<SongListPage> {
                 child: ListView.builder(
                   controller: scrollController,
                   shrinkWrap: true,
-                  // Filter the list of collections to exclude 'lpmi'
                   itemCount: AppConstants.collections.values
                       .where((c) => c.id != 'lpmi')
                       .length,
