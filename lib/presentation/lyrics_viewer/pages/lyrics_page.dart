@@ -1,4 +1,4 @@
-// lib/presentation/lyrics_viewer/pages/lyrics_page.dart - UPDATED
+// lib/presentation/lyrics_viewer/pages/lyrics_page.dart - UPDATED WITH SONG VALIDATION
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +9,7 @@ import '../../../core/services/favorites_notifier.dart';
 import '../../../data/models/song.dart';
 import '../../shared/widgets/loading_widget.dart';
 import '../../shared/widgets/error_widget.dart';
+import '../../shared/pages/not_found_page.dart';
 
 class LyricsPage extends StatefulWidget {
   final String collectionId;
@@ -32,6 +33,7 @@ class _LyricsPageState extends State<LyricsPage> {
   String _fontFamily = 'Roboto';
   TextAlign _textAlign = TextAlign.left;
   bool _isLoading = true;
+  bool _songNotFound = false;
 
   final ScrollController _scrollController = ScrollController();
 
@@ -49,48 +51,94 @@ class _LyricsPageState extends State<LyricsPage> {
   }
 
   void _loadSong() {
-    _songFuture = JsonLoaderService.loadSongsFromCollection(widget.collectionId)
-        .then((songs) => JsonLoaderService.findSongById(songs, widget.songId));
+    _songFuture = _loadSongWithValidation();
+  }
+
+  // UPDATED: Enhanced song loading with validation
+  Future<Song?> _loadSongWithValidation() async {
+    try {
+      final songs =
+          await JsonLoaderService.loadSongsFromCollection(widget.collectionId);
+      final song = JsonLoaderService.findSongById(songs, widget.songId);
+
+      if (song == null) {
+        if (mounted) {
+          setState(() {
+            _songNotFound = true;
+          });
+        }
+      }
+
+      return song;
+    } catch (e) {
+      debugPrint('Error loading song: $e');
+      if (mounted) {
+        setState(() {
+          _songNotFound = true;
+        });
+      }
+      return null;
+    }
   }
 
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _fontSize = prefs.getDouble('fontSize') ?? AppConstants.defaultFontSize;
-        _fontFamily = prefs.getString('fontFamily') ?? 'Roboto';
-        _textAlign = TextAlign.values[prefs.getInt('textAlign') ?? 0];
-        _isLoading = false;
-      });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (mounted) {
+        setState(() {
+          _fontSize =
+              prefs.getDouble('fontSize') ?? AppConstants.defaultFontSize;
+          _fontFamily = prefs.getString('fontFamily') ?? 'Roboto';
+          _textAlign = TextAlign.values[prefs.getInt('textAlign') ?? 0];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading settings: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _toggleFavorite() async {
-    await widget.favoritesNotifier
-        .toggleFavoriteFromCollection(widget.collectionId, widget.songId);
+    try {
+      await widget.favoritesNotifier
+          .toggleFavoriteFromCollection(widget.collectionId, widget.songId);
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.favoritesNotifier
-                    .isFavoriteInCollection(widget.collectionId, widget.songId)
-                ? 'Added to favorites'
-                : 'Removed from favorites',
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.favoritesNotifier.isFavoriteInCollection(
+                      widget.collectionId, widget.songId)
+                  ? 'Added to favorites'
+                  : 'Removed from favorites',
+            ),
+            duration: const Duration(seconds: 1),
           ),
-          duration: const Duration(seconds: 1),
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      debugPrint('Error toggling favorite: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error updating favorites')),
+        );
+      }
     }
   }
 
   Future<void> _shareSong(Song song) async {
-    final lyrics = song.verses
-        .map((verse) => 'Verse ${verse.verseNumber}:\n${verse.lyrics}')
-        .join('\n\n');
+    try {
+      final lyrics = song.verses
+          .map((verse) => 'Verse ${verse.verseNumber}:\n${verse.lyrics}')
+          .join('\n\n');
 
-    final metadata = AppConstants.collections[widget.collectionId];
-    final shareText = '''${song.songTitle}
+      final metadata = AppConstants.collections[widget.collectionId];
+      final shareText = '''${song.songTitle}
 From: ${metadata?.displayName ?? 'Unknown Collection'}
 Song #${song.songNumber}
 
@@ -98,39 +146,56 @@ $lyrics
 
 Shared from ${AppConstants.appName}''';
 
-    await Clipboard.setData(ClipboardData(text: shareText));
+      await Clipboard.setData(ClipboardData(text: shareText));
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Song copied to clipboard'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Song copied to clipboard'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error sharing song: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error sharing song')),
+        );
+      }
     }
   }
 
   Future<void> _copyToClipboard(Song song) async {
-    final lyrics = song.verses
-        .map((verse) => '${verse.verseNumber}\n${verse.lyrics}')
-        .join('\n\n');
+    try {
+      final lyrics = song.verses
+          .map((verse) => '${verse.verseNumber}\n${verse.lyrics}')
+          .join('\n\n');
 
-    final metadata = AppConstants.collections[widget.collectionId];
-    final songText = '''${song.songTitle}
+      final metadata = AppConstants.collections[widget.collectionId];
+      final songText = '''${song.songTitle}
 From: ${metadata?.displayName ?? 'Unknown Collection'}
 Song #${song.songNumber}
 
 $lyrics''';
 
-    await Clipboard.setData(ClipboardData(text: songText));
+      await Clipboard.setData(ClipboardData(text: songText));
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Song copied to clipboard'),
-          duration: Duration(seconds: 1),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Song copied to clipboard'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error copying song: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error copying song')),
+        );
+      }
     }
   }
 
@@ -175,6 +240,17 @@ $lyrics''';
       );
     }
 
+    // UPDATED: Show not found page for invalid songs
+    if (_songNotFound) {
+      return NotFoundPage(
+        title: 'Song Not Found',
+        message:
+            'Song "${widget.songId}" was not found in ${metadata?.displayName ?? 'this collection'}.',
+        actionText: 'Browse Collection',
+        onAction: () => context.go('/collection/${widget.collectionId}'),
+      );
+    }
+
     return Scaffold(
       backgroundColor: colorScheme.surface,
       body: AnimatedBuilder(
@@ -187,20 +263,32 @@ $lyrics''';
                 return const LoadingWidget();
               }
 
-              if (snapshot.hasError || snapshot.data == null) {
+              if (snapshot.hasError) {
                 return CustomErrorWidget(
-                  message: snapshot.data == null
-                      ? 'Song not found'
-                      : 'Failed to load song: ${snapshot.error}',
+                  message: 'Failed to load song: ${snapshot.error}',
                   onRetry: () {
-                    setState(() {
-                      _loadSong();
-                    });
+                    if (mounted) {
+                      setState(() {
+                        _songNotFound = false;
+                        _loadSong();
+                      });
+                    }
                   },
                 );
               }
 
-              final song = snapshot.data!;
+              final song = snapshot.data;
+              if (song == null) {
+                return NotFoundPage(
+                  title: 'Song Not Found',
+                  message:
+                      'Song "${widget.songId}" was not found in ${metadata?.displayName ?? 'this collection'}.',
+                  actionText: 'Browse Collection',
+                  onAction: () =>
+                      context.go('/collection/${widget.collectionId}'),
+                );
+              }
+
               final isFavorite = widget.favoritesNotifier
                   .isFavoriteInCollection(widget.collectionId, widget.songId);
 

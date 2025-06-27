@@ -1,8 +1,9 @@
-// lib/app/app.dart
+// lib/app/app.dart - UPDATED WITH ROUTE VALIDATION
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/services/theme_notifier.dart';
 import '../core/services/favorites_notifier.dart';
+import '../core/constants/app_constants.dart';
 import '../presentation/dashboard/pages/figma_dashboard_page.dart';
 import '../presentation/song_list/pages/song_list_page.dart';
 import '../presentation/lyrics_viewer/pages/lyrics_page.dart';
@@ -14,8 +15,8 @@ import '../presentation/auth/pages/login_page.dart';
 import '../presentation/auth/pages/register_page.dart';
 import '../presentation/auth/pages/profile_page.dart';
 import '../presentation/favorites/pages/favorites_page.dart';
+import '../presentation/shared/pages/not_found_page.dart';
 
-// The app widget is now a StatefulWidget to create a stable router instance.
 class SongLyricsApp extends StatefulWidget {
   final ThemeNotifier themeNotifier;
   final FavoritesNotifier favoritesNotifier;
@@ -36,13 +37,11 @@ class _SongLyricsAppState extends State<SongLyricsApp> {
   @override
   void initState() {
     super.initState();
-    // The router is created once here and will not be rebuilt on state changes.
     _router = _createRouter();
   }
 
   @override
   Widget build(BuildContext context) {
-    // The AnimatedBuilder now only rebuilds the MaterialApp, not the router itself.
     return AnimatedBuilder(
       animation: widget.themeNotifier,
       builder: (context, child) {
@@ -51,14 +50,13 @@ class _SongLyricsAppState extends State<SongLyricsApp> {
           theme: widget.themeNotifier.lightTheme,
           darkTheme: widget.themeNotifier.darkTheme,
           themeMode: widget.themeNotifier.themeMode,
-          routerConfig: _router, // Use the stable router instance.
+          routerConfig: _router,
           debugShowCheckedModeBanner: false,
         );
       },
     );
   }
 
-  // The router configuration is now defined in the state.
   GoRouter _createRouter() {
     return GoRouter(
       initialLocation: '/',
@@ -80,10 +78,22 @@ class _SongLyricsAppState extends State<SongLyricsApp> {
           path: '/profile',
           builder: (context, state) => const ProfilePage(),
         ),
+        // UPDATED: Collection route with validation
         GoRoute(
           path: '/collection/:collectionId',
           builder: (context, state) {
             final collectionId = state.pathParameters['collectionId']!;
+
+            // Validate collection exists
+            if (!AppConstants.collections.containsKey(collectionId)) {
+              return NotFoundPage(
+                title: 'Collection Not Found',
+                message: 'The collection "$collectionId" does not exist.',
+                actionText: 'View Collections',
+                onAction: () => context.go('/'),
+              );
+            }
+
             final openSearch = state.uri.queryParameters['search'] == 'true';
             return SongListPage(
               collectionId: collectionId,
@@ -92,11 +102,24 @@ class _SongLyricsAppState extends State<SongLyricsApp> {
             );
           },
         ),
+        // UPDATED: Lyrics route with validation
         GoRoute(
           path: '/lyrics/:collectionId/:songId',
           builder: (context, state) {
             final collectionId = state.pathParameters['collectionId']!;
             final songId = state.pathParameters['songId']!;
+
+            // Validate collection exists
+            if (!AppConstants.collections.containsKey(collectionId)) {
+              return NotFoundPage(
+                title: 'Collection Not Found',
+                message: 'The collection "$collectionId" does not exist.',
+                actionText: 'View Collections',
+                onAction: () => context.go('/'),
+              );
+            }
+
+            // Note: Song validation happens in LyricsPage since it requires async loading
             return LyricsPage(
               collectionId: collectionId,
               songId: songId,
@@ -113,7 +136,7 @@ class _SongLyricsAppState extends State<SongLyricsApp> {
           path: '/sermons',
           builder: (context, state) => const SermonPage(),
         ),
-        // Admin Routes
+        // Admin Routes with validation
         GoRoute(
           path: '/admin/sermons',
           builder: (context, state) => const SermonManagementPage(),
@@ -125,27 +148,50 @@ class _SongLyricsAppState extends State<SongLyricsApp> {
         GoRoute(
           path: '/admin/sermons/edit/:sermonId',
           builder: (context, state) {
+            final sermonId = state.pathParameters['sermonId'];
+            if (sermonId == null || sermonId.isEmpty) {
+              return const NotFoundPage(
+                title: 'Invalid Sermon',
+                message: 'Sermon ID is required for editing.',
+              );
+            }
+
             final sermonData = state.extra as Map<String, dynamic>?;
             return AddEditSermonPage(sermon: sermonData);
           },
         ),
-        // Shortcuts
         GoRoute(
           path: '/favorites',
           builder: (context, state) => FavoritesPage(
             favoritesNotifier: widget.favoritesNotifier,
           ),
         ),
+        // UPDATED: Search redirect with validation
         GoRoute(
           path: '/search',
-          // Changed default search collection from 'lpmi' to 'srd'
-          redirect: (context, state) => '/collection/srd?search=true',
+          redirect: (context, state) {
+            // Ensure SRD collection exists before redirecting
+            if (AppConstants.collections.containsKey('srd')) {
+              return '/collection/srd?search=true';
+            }
+            // Fallback to first available collection
+            final firstCollection = AppConstants.collections.keys.first;
+            return '/collection/$firstCollection?search=true';
+          },
         ),
       ],
-      errorBuilder: (context, state) => Scaffold(
-        appBar: AppBar(title: const Text('Page Not Found')),
-        body: Center(child: Text('Page not found: ${state.error}')),
+      // UPDATED: Better error handling
+      errorBuilder: (context, state) => NotFoundPage(
+        title: 'Page Not Found',
+        message: 'The page "${state.uri.path}" could not be found.',
+        actionText: 'Go Home',
+        onAction: () => context.go('/'),
       ),
+      // Add redirect for invalid routes
+      redirect: (context, state) {
+        // Handle any additional redirect logic here if needed
+        return null;
+      },
     );
   }
 }
