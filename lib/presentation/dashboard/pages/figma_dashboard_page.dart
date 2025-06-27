@@ -26,6 +26,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
   bool _isLoading = true;
   String _currentDate = '';
   String _greeting = '';
+  IconData _greetingIcon = Icons.wb_sunny_rounded;
   String _userName = 'Guest';
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -41,7 +42,6 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
     _initializePage();
-    // Listen for changes in favorites to keep the list up-to-date.
     widget.favoritesNotifier.addListener(_onFavoritesChanged);
   }
 
@@ -92,16 +92,20 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
 
     if (hour < 12) {
       _greeting = 'Good Morning';
+      _greetingIcon = Icons.wb_sunny_rounded;
     } else if (hour < 17) {
       _greeting = 'Good Afternoon';
+      _greetingIcon = Icons.wb_sunny_rounded;
     } else {
       _greeting = 'Good Evening';
+      _greetingIcon = Icons.nightlight_round;
     }
     _currentDate = DateFormat('EEEE, MMMM d').format(now);
   }
 
   Future<void> _loadCollectionCounts() async {
     for (final entry in AppConstants.collections.entries) {
+      if (entry.key == 'lpmi') continue; // Skip LPMI collection
       try {
         final songs =
             await JsonLoaderService.loadSongsFromCollection(entry.key);
@@ -127,7 +131,13 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     final foundSongs =
         await JsonLoaderService.findSongsByNumbers(favoriteSongNumbers);
 
-    _recentFavorites = foundSongs.map((song) {
+    // Filter out songs from collections that no longer exist (e.g., 'lpmi')
+    final validSongs = foundSongs
+        .where(
+            (song) => AppConstants.collections.containsKey(song.collectionId))
+        .toList();
+
+    _recentFavorites = validSongs.map((song) {
       final collectionInfo = AppConstants.collections[song.collectionId];
       return {
         'song_number': song.songNumber,
@@ -142,8 +152,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     try {
       final allVerses = <Map<String, dynamic>>[];
       for (final entry in AppConstants.collections.entries) {
-        // Skip the 'lpmi' collection for the verse of the day
-        if (entry.key == 'lpmi') continue;
+        if (entry.key == 'lpmi') continue; // Skip LPMI collection
         try {
           final songs =
               await JsonLoaderService.loadSongsFromCollection(entry.key);
@@ -226,7 +235,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
   Widget _buildSliverAppBar() {
     final theme = Theme.of(context);
     return SliverAppBar(
-      expandedHeight: 220,
+      expandedHeight: 240,
       floating: false,
       pinned: true,
       backgroundColor: theme.colorScheme.surface,
@@ -262,33 +271,55 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          '$_greeting, $_userName',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(_greetingIcon,
+                                  color: Colors.white, size: 32),
+                              const SizedBox(width: 12),
+                              Text(
+                                _greeting,
+                                style: theme.textTheme.headlineMedium?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                          const SizedBox(height: 4),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 44.0),
+                            child: Text(
+                              _userName,
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 16),
                       InkWell(
                         onTap: () => context
                             .go(AuthService.isLoggedIn ? '/profile' : '/login'),
                         child: CircleAvatar(
+                          radius: 24,
                           backgroundColor: Colors.white.withOpacity(0.2),
                           child: Icon(
                             AuthService.isLoggedIn ? Icons.person : Icons.login,
                             color: Colors.white,
-                            size: 20,
+                            size: 24,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
                   GestureDetector(
                     onTap: () => context.go('/search'),
                     child: Container(
@@ -396,8 +427,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
       {
         'icon': Icons.music_note_rounded,
         'label': 'Songs',
-        // Changed default songs collection from 'lpmi' to 'srd'
-        'route': '/collection/srd',
+        'route': '/collection/srd', // Default to SRD instead of LPMI
         'color': Colors.blue.shade400
       },
       {
@@ -567,7 +597,6 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
               if (collectionId != null && songNumber != null) {
                 context.go('/lyrics/$collectionId/$songNumber');
               } else {
-                // Diagnostic message if navigation fails
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                       content: Text('Error: Could not find song details.')),
@@ -582,8 +611,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
 
   IconData _getCollectionIcon(String collectionId) {
     switch (collectionId) {
-      case 'lpmi':
-        return Icons.book_rounded;
+      // The 'lpmi' case has been removed.
       case 'srd':
         return Icons.auto_stories_rounded;
       case 'lagu_iban':

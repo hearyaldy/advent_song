@@ -60,7 +60,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
           return NestedScrollView(
             headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              // This method has been updated to include a header image
               _buildSliverAppBar(context, favoriteSongs.length),
             ],
             body: favoriteSongs.isEmpty
@@ -75,7 +74,6 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   // --- WIDGET BUILDER METHODS ---
 
-  // --- UI REFRESH: This SliverAppBar now has a header image ---
   Widget _buildSliverAppBar(BuildContext context, int count) {
     final theme = Theme.of(context);
     return SliverAppBar(
@@ -156,6 +154,11 @@ class _FavoritesPageState extends State<FavoritesPage> {
     final theme = Theme.of(context);
     final collectionMeta = AppConstants.collections[song.collectionId];
 
+    // Filter out cards for songs from collections that no longer exist
+    if (collectionMeta == null) {
+      return const SizedBox.shrink(); // Return an empty widget
+    }
+
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 12.0),
@@ -164,12 +167,11 @@ class _FavoritesPageState extends State<FavoritesPage> {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
-          backgroundColor:
-              (collectionMeta?.colorTheme ?? theme.primaryColor).withAlpha(25),
+          backgroundColor: (collectionMeta.colorTheme).withAlpha(25),
           child: Text(
             song.songNumber,
             style: TextStyle(
-              color: collectionMeta?.colorTheme ?? theme.primaryColor,
+              color: collectionMeta.colorTheme,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -177,19 +179,12 @@ class _FavoritesPageState extends State<FavoritesPage> {
         title: Text(song.songTitle,
             style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
-          collectionMeta?.displayName ?? 'Unknown Collection',
+          collectionMeta.displayName,
           style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
         ),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () {
-          if (song.collectionId != null) {
-            context.go('/lyrics/${song.collectionId}/${song.songNumber}');
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Could not find collection for this song.')),
-            );
-          }
+          context.go('/lyrics/${song.collectionId}/${song.songNumber}');
         },
       ),
     );
@@ -240,7 +235,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
             context.go('/');
             break;
           case 1:
-            context.go('/collection/lpmi');
+            // This now correctly navigates to the 'srd' collection by default.
+            context.go('/collection/srd');
             break;
           case 2:
             context.go('/sermons');
