@@ -1,7 +1,10 @@
-// lib/presentation/dashboard/pages/figma_dashboard_page.dart - MEMORY LEAK FIXES
+// lib/presentation/dashboard/pages/figma_dashboard_page.dart
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
@@ -19,7 +22,7 @@ class FigmaDashboardPage extends StatefulWidget {
 }
 
 class _FigmaDashboardPageState extends State<FigmaDashboardPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   Map<String, dynamic>? _verseOfTheDay;
   List<Map<String, dynamic>> _recentFavorites = [];
   final Map<String, int> _collectionCounts = {};
@@ -28,14 +31,18 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
   String _greeting = '';
   IconData _greetingIcon = Icons.wb_sunny_rounded;
   String _userName = 'Guest';
+  File? _profileImageFile;
 
-  // FIXED: Late initialization with null safety
+  // Added for safe handling of animations
   AnimationController? _animationController;
   Animation<double>? _fadeAnimation;
+
+  static const String _profileImageName = 'profile_photo.jpg';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeAnimations();
     _initializePage();
     widget.favoritesNotifier.addListener(_onFavoritesChanged);
@@ -43,23 +50,29 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
 
   @override
   void dispose() {
-    // FIXED: Safe disposal with null check
+    WidgetsBinding.instance.removeObserver(this);
     _animationController?.dispose();
     widget.favoritesNotifier.removeListener(_onFavoritesChanged);
     super.dispose();
   }
 
-  // FIXED: Separate animation initialization
-  void _initializeAnimations() {
-    if (mounted) {
-      _animationController = AnimationController(
-        duration: const Duration(milliseconds: 800),
-        vsync: this,
-      );
-      _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: _animationController!, curve: Curves.easeIn),
-      );
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh user data when returning to the app
+    if (state == AppLifecycleState.resumed) {
+      _initializePage(isRefresh: true);
     }
+  }
+
+  void _initializeAnimations() {
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController!, curve: Curves.easeIn),
+    );
   }
 
   void _onFavoritesChanged() {
@@ -70,37 +83,62 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     });
   }
 
-  Future<void> _initializePage() async {
-    try {
+  Future<void> _initializePage({bool isRefresh = false}) async {
+    // Avoid full reload if we're just refreshing user-specific data
+    if (!isRefresh) {
+      setState(() => _isLoading = true);
       await Future.wait([
         _loadCollectionCounts(),
-        _loadRecentFavorites(),
         _loadVerseOfTheDay(),
-        _loadUserInfo(),
       ]);
-      _setGreetingAndDate();
+    }
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        // FIXED: Safe animation start with null check
-        _animationController?.forward();
+    // Always refresh user data and favorites
+    await Future.wait([
+      _loadRecentFavorites(),
+      _loadUserInfo(),
+      _loadProfileImage(),
+    ]);
+
+    _setGreetingAndDate();
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+      _animationController?.forward();
+    }
+  }
+
+  Future<void> _loadProfileImage() async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final imagePath = p.join(appDir.path, _profileImageName);
+      final imageFile = File(imagePath);
+
+      if (await imageFile.exists()) {
+        if (mounted) {
+          setState(() {
+            _profileImageFile = imageFile;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _profileImageFile = null;
+          });
+        }
       }
     } catch (e) {
-      debugPrint('Error initializing dashboard: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      debugPrint('Could not load profile image: $e');
     }
   }
 
   Future<void> _loadUserInfo() async {
     try {
       if (AuthService.isLoggedIn) {
-        _userName = AuthService.userName;
+        // Fetch fresh user name from service
+        _userName = await AuthService.userName;
       } else {
         final prefs = await SharedPreferences.getInstance();
         _userName = prefs.getString('userName') ?? 'Guest';
@@ -245,10 +283,10 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // FIXED: Use null-aware operator for animation
     final animation = _fadeAnimation;
     if (animation == null) {
-      return _buildContent(); // Fallback without animation
+      // Fallback if animation isn't ready, though unlikely.
+      return _buildContent();
     }
 
     return Scaffold(
@@ -261,40 +299,47 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
   }
 
   Widget _buildContent() {
-    return CustomScrollView(
-      slivers: [
-        _buildSliverAppBar(),
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              _buildSectionHeader('Verse of the Day'),
-              const SizedBox(height: 16),
-              if (_verseOfTheDay != null) _buildVerseOfTheDayCard(),
-              const SizedBox(height: 32),
-              _buildSectionHeader('Quick Access'),
-              const SizedBox(height: 16),
-              _buildQuickAccessCarousel(),
-              const SizedBox(height: 32),
-              _buildSectionHeader('Explore Collections'),
-              const SizedBox(height: 16),
-              _buildCollectionsCarousel(),
-              const SizedBox(height: 32),
-              if (_recentFavorites.isNotEmpty) ...[
-                _buildSectionHeader('Recent Favorites',
-                    onViewAll: () => context.go('/favorites')),
+    return RefreshIndicator(
+      onRefresh: () => _initializePage(isRefresh: true),
+      child: CustomScrollView(
+        slivers: [
+          _buildSliverAppBar(),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                _buildSectionHeader('Verse of the Day'),
                 const SizedBox(height: 16),
-                _buildRecentFavoritesList(),
-              ]
-            ]),
+                if (_verseOfTheDay != null) _buildVerseOfTheDayCard(),
+                const SizedBox(height: 32),
+                _buildSectionHeader('Quick Access'),
+                const SizedBox(height: 16),
+                _buildQuickAccessCarousel(),
+                const SizedBox(height: 32),
+                _buildSectionHeader('Explore Collections'),
+                const SizedBox(height: 16),
+                _buildCollectionsCarousel(),
+                const SizedBox(height: 32),
+                if (_recentFavorites.isNotEmpty) ...[
+                  _buildSectionHeader('Recent Favorites',
+                      onViewAll: () => context.go('/favorites')),
+                  const SizedBox(height: 16),
+                  _buildRecentFavoritesList(),
+                ]
+              ]),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildSliverAppBar() {
     final theme = Theme.of(context);
+    final initials = _userName.isNotEmpty
+        ? _userName.split(' ').map((e) => e[0]).take(2).join()
+        : 'G';
+
     return SliverAppBar(
       expandedHeight: 240,
       floating: false,
@@ -382,12 +427,19 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
                             .go(AuthService.isLoggedIn ? '/profile' : '/login'),
                         child: CircleAvatar(
                           radius: 24,
+                          backgroundImage: _profileImageFile != null
+                              ? FileImage(_profileImageFile!)
+                              : null,
                           backgroundColor: Colors.white.withOpacity(0.2),
-                          child: Icon(
-                            AuthService.isLoggedIn ? Icons.person : Icons.login,
-                            color: Colors.white,
-                            size: 24,
-                          ),
+                          child: _profileImageFile == null
+                              ? Text(
+                                  initials.toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                              : null,
                         ),
                       ),
                     ],
