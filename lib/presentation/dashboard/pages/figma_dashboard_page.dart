@@ -138,7 +138,7 @@ class _FigmaDashboardPageState extends State<FigmaDashboardPage>
     try {
       if (AuthService.isLoggedIn) {
         // Fetch fresh user name from service
-        _userName = await AuthService.userName;
+        _userName = AuthService.userName;
       } else {
         final prefs = await SharedPreferences.getInstance();
         _userName = prefs.getString('userName') ?? 'Guest';

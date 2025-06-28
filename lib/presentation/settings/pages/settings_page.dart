@@ -1,14 +1,21 @@
 // lib/presentation/settings/pages/settings_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/theme_notifier.dart';
+import '../../../core/services/favorites_notifier.dart';
 
 class SettingsPage extends StatefulWidget {
   final ThemeNotifier themeNotifier;
+  final FavoritesNotifier? favoritesNotifier;
 
-  const SettingsPage({super.key, required this.themeNotifier});
+  const SettingsPage({
+    super.key,
+    required this.themeNotifier,
+    this.favoritesNotifier,
+  });
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -156,7 +163,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
           ],
         ),
-        // --- UI REFRESH: The ListView now contains all the sections directly ---
         body: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
@@ -197,13 +203,100 @@ class _SettingsPageState extends State<SettingsPage> {
                     foregroundColor: Theme.of(context).colorScheme.error),
               ),
             ),
+
+            // --- Debug Section (only show in debug mode) ---
+            if (kDebugMode && widget.favoritesNotifier != null) ...[
+              const SizedBox(height: 32),
+              const Divider(),
+              const SizedBox(height: 16),
+              _buildSectionHeader(
+                  'Debug Information', Icons.bug_report_rounded),
+              const SizedBox(height: 16),
+              Card(
+                color: Theme.of(context)
+                    .colorScheme
+                    .errorContainer
+                    .withOpacity(0.3),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Favorites Debug Info',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                      const SizedBox(height: 12),
+                      FutureBuilder<Map<String, dynamic>>(
+                        future: widget.favoritesNotifier!.getDiagnosticInfo(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData) {
+                            final info = snapshot.data!;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildDebugRow('Total Favorites',
+                                    '${info['favorites_count']}'),
+                                _buildDebugRow(
+                                    'Last Save Time', info['last_save_time']),
+                                _buildDebugRow(
+                                    'Migration Status',
+                                    info['migration_completed']
+                                        ? 'Completed'
+                                        : 'Pending'),
+                                _buildDebugRow(
+                                    'Version', '${info['favorites_version']}'),
+                                _buildDebugRow('Has Backup',
+                                    info['has_backup'] ? 'Yes' : 'No'),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    TextButton(
+                                      onPressed: () async {
+                                        final restored = await widget
+                                            .favoritesNotifier!
+                                            .restoreFromBackup();
+                                        _showMessage(
+                                          restored
+                                              ? 'Favorites restored from backup'
+                                              : 'No backup found',
+                                          isSuccess: restored,
+                                        );
+                                      },
+                                      child: const Text('Restore Backup'),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    TextButton(
+                                      onPressed: () async {
+                                        await widget.favoritesNotifier!
+                                            .validateFavorites();
+                                        _showMessage('Favorites validated',
+                                            isSuccess: true);
+                                      },
+                                      child: const Text('Validate Data'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          }
+                          return const CircularProgressIndicator();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  // This helper now only builds the header row
   Widget _buildSectionHeader(String title, IconData icon) {
     final theme = Theme.of(context);
     return Row(
@@ -217,7 +310,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // The rest of the helper methods remain the same, as their internal logic is correct.
   Widget _buildFontSizeSlider() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -417,6 +509,24 @@ class _SettingsPageState extends State<SettingsPage> {
             style: FilledButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDebugRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
           ),
         ],
       ),

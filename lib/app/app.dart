@@ -129,8 +129,10 @@ class _SongLyricsAppState extends State<SongLyricsApp> {
         ),
         GoRoute(
           path: '/settings',
-          builder: (context, state) =>
-              SettingsPage(themeNotifier: widget.themeNotifier),
+          builder: (context, state) => SettingsPage(
+            themeNotifier: widget.themeNotifier,
+            favoritesNotifier: widget.favoritesNotifier,
+          ),
         ),
         GoRoute(
           path: '/sermons',

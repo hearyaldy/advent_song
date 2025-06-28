@@ -1,5 +1,6 @@
 // lib/main.dart - UPDATED
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'firebase_options.dart';
@@ -54,9 +55,27 @@ void main() async {
       themeNotifier.initialize(),
       favoritesNotifier.initialize(), // Migration happens here
     ]);
+
+    // Validate favorites after initialization
+    await favoritesNotifier.validateFavorites();
+
+    // Log diagnostic info in debug mode
+    if (kDebugMode) {
+      final diagnosticInfo = await favoritesNotifier.getDiagnosticInfo();
+      print('Favorites diagnostic info: $diagnosticInfo');
+    }
+
     print('App initialization completed successfully');
   } catch (e) {
     print('Error during app initialization: $e');
+    // Try to restore from backup if favorites failed to load
+    if (favoritesNotifier.favoritesCount == 0) {
+      print('Attempting to restore favorites from backup...');
+      final restored = await favoritesNotifier.restoreFromBackup();
+      if (restored) {
+        print('Successfully restored favorites from backup');
+      }
+    }
     // Continue with app launch even if initialization fails
   }
 
